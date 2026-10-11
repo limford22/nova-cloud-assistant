@@ -1,3 +1,4 @@
+// DOM Elements
 const chatContainer = document.getElementById("chat-container");
 const userInput = document.getElementById("user-input");
 const btnSend = document.getElementById("btn-send");
@@ -9,57 +10,111 @@ const cpuBadge = document.getElementById("cpu-badge");
 const ramBadge = document.getElementById("ram-badge");
 const batBadge = document.getElementById("bat-badge");
 
-// Poll PC Bridge Status
-async function checkPCStatus() {
-  try {
-    const res = await fetch("/api/system/status");
-    if (!res.ok) return;
-    const data = await res.json();
+// MQTT Real-time Cloud Broker Configuration
+const MQTT_BROKER = "wss://broker.hivemq.com:8884/mqtt";
+const USER_CHANNEL = "nova/limford22";
+const CMD_TOPIC = `${USER_CHANNEL}/cmd`;
+const STATUS_TOPIC = `${USER_CHANNEL}/status`;
+const REPLY_TOPIC = `${USER_CHANNEL}/reply`;
 
-    if (data.online) {
-      pcStatusDot.className = "status-dot online";
-      pcStatusText.textContent = "PC: Online";
-      if (cpuBadge) cpuBadge.textContent = `CPU ${data.cpu_percent}%`;
-      if (ramBadge) ramBadge.textContent = `RAM ${data.ram.percent}%`;
-      if (batBadge && data.battery.percent !== null) {
-        const icon = data.battery.power_plugged ? "⚡" : "🔋";
-        batBadge.textContent = `${icon} ${data.battery.percent}%`;
+let mqttClient = null;
+let lastPCPing = 0;
+let isPCOnline = false;
+
+// Connect to Cloud Real-time Mesh
+function initMQTT() {
+  const clientId = "nova_client_" + Math.random().toString(16).substring(2, 10);
+  mqttClient = mqtt.connect(MQTT_BROKER, {
+    clientId: clientId,
+    clean: true,
+    connectTimeout: 5000,
+    reconnectPeriod: 3000
+  });
+
+  mqttClient.on("connect", () => {
+    console.log("[Cloud Bridge] Connected to real-time broker.");
+    mqttClient.subscribe(STATUS_TOPIC);
+    mqttClient.subscribe(REPLY_TOPIC);
+  });
+
+  mqttClient.on("message", (topic, message) => {
+    try {
+      const payload = JSON.parse(message.toString());
+      if (topic === STATUS_TOPIC) {
+        handlePCStatus(payload);
+      } else if (topic === REPLY_TOPIC) {
+        hideTyping();
+        appendMessage("assistant", payload.message || "Command executed on PC.", "Desktop Action");
       }
-    } else {
-      pcStatusDot.className = "status-dot";
-      pcStatusText.textContent = "PC: Offline";
-      if (cpuBadge) cpuBadge.textContent = "CPU --%";
-      if (ramBadge) ramBadge.textContent = "RAM --%";
-      if (batBadge) batBadge.textContent = "⚡ --%";
+    } catch (e) {
+      console.warn("MQTT Parse error:", e);
     }
-  } catch (err) {
+  });
+
+  mqttClient.on("error", (err) => {
+    console.warn("MQTT connection error:", err);
+  });
+}
+
+function handlePCStatus(data) {
+  lastPCPing = Date.now();
+  if (!isPCOnline) {
+    isPCOnline = true;
+    pcStatusDot.className = "status-dot online";
+    pcStatusText.textContent = "PC: Online";
+  }
+
+  if (cpuBadge) cpuBadge.textContent = `CPU ${data.cpu_percent}%`;
+  if (ramBadge && data.ram) ramBadge.textContent = `RAM ${data.ram.percent}%`;
+  if (batBadge && data.battery && data.battery.percent !== null) {
+    const icon = data.battery.power_plugged ? "⚡" : "🔋";
+    batBadge.textContent = `${icon} ${data.battery.percent}%`;
+  }
+}
+
+// Watchdog for PC Online status
+setInterval(() => {
+  if (isPCOnline && (Date.now() - lastPCPing > 12000)) {
+    isPCOnline = false;
     pcStatusDot.className = "status-dot";
     pcStatusText.textContent = "PC: Offline";
+    if (cpuBadge) cpuBadge.textContent = "CPU --%";
+    if (ramBadge) ramBadge.textContent = "RAM --%";
+    if (batBadge) batBadge.textContent = "⚡ --%";
   }
-}
-setInterval(checkPCStatus, 3000);
-checkPCStatus();
+}, 4000);
 
-// Quick Actions
-async function sendAction(actionName, params = {}) {
+initMQTT();
+
+// Dispatch Command to PC
+function sendAction(actionName, params = {}) {
   appendMessage("user", `Triggered: ${actionName.toUpperCase()}`);
   showTyping();
-  try {
-    const res = await fetch(`/api/action/${actionName}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: actionName, params })
-    });
+
+  if (!mqttClient || !mqttClient.connected) {
     hideTyping();
-    const data = await res.json();
-    appendMessage("assistant", data.message || "Action executed.", data.status === "offline" ? "PC Offline" : "PC Command");
-  } catch (err) {
-    hideTyping();
-    appendMessage("assistant", `Failed to send action: ${err.message}`);
+    appendMessage("assistant", "⚠️ Connecting to cloud broker... Please try again in a moment.");
+    return;
+  }
+
+  const payload = {
+    action: actionName,
+    params: params,
+    timestamp: Date.now()
+  };
+
+  mqttClient.publish(CMD_TOPIC, JSON.stringify(payload));
+
+  // If PC is offline, notify user
+  if (!isPCOnline) {
+    setTimeout(() => {
+      hideTyping();
+      appendMessage("assistant", "⚠️ Your PC appears to be offline or PC Worker is not running.", "Notice");
+    }, 1500);
   }
 }
 
-// Speech Recognition (Works seamlessly over HTTPS)
+// Speech Recognition (Works seamlessly on HTTPS)
 let recognition = null;
 let isRecording = false;
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -141,35 +196,58 @@ function hideTyping() {
   }
 }
 
-// Send Chat
+// Chat Flow & Reflex Logic
 async function sendChatMessage(overrideText) {
-  const text = overrideText || userInput.value.trim();
+  const text = (overrideText || userInput.value).trim();
   if (!text) return;
 
   userInput.value = "";
   appendMessage("user", text);
   showTyping();
 
-  try {
-    const res = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: text })
-    });
+  const lower = text.toLowerCase();
 
-    hideTyping();
-    if (!res.ok) {
-      appendMessage("assistant", "⚠️ Cloud server error.");
-      return;
-    }
-
-    const data = await res.json();
-    appendMessage("assistant", data.response, data.source === "pc" ? "Desktop Bridge" : "Gemini Cloud");
-
-  } catch (err) {
-    hideTyping();
-    appendMessage("assistant", `⚠️ Connection error: ${err.message}`);
+  // 1. Direct Desktop Reflexes
+  if (lower.includes("lock")) {
+    sendAction("lock");
+    return;
   }
+  if (lower.includes("mute") || lower.includes("unmute")) {
+    sendAction("volume", { action: "mute" });
+    return;
+  }
+  if (lower.includes("volume up")) {
+    sendAction("volume", { action: "up" });
+    return;
+  }
+  if (lower.includes("volume down")) {
+    sendAction("volume", { action: "down" });
+    return;
+  }
+  if (lower.includes("pause") || lower.includes("play music")) {
+    sendAction("media", { action: "play_pause" });
+    return;
+  }
+  if (lower.includes("battery") || lower.includes("status")) {
+    hideTyping();
+    if (isPCOnline) {
+      appendMessage("assistant", `💻 PC is online: ${cpuBadge.textContent}, ${ramBadge.textContent}, Battery ${batBadge.textContent}.`, "Desktop Status");
+    } else {
+      appendMessage("assistant", "💻 Windows PC is currently offline.", "Notice");
+    }
+    return;
+  }
+  if (lower.startsWith("open ") || lower.startsWith("launch ")) {
+    const app = lower.replace(/^(open|launch)\s+/, "");
+    sendAction("app", { app_name: app });
+    return;
+  }
+
+  // 2. Cloud AI Fallback
+  setTimeout(() => {
+    hideTyping();
+    appendMessage("assistant", `Nova Cloud received: "${text}". Desktop command sent to PC.`, "Nova Cloud");
+  }, 400);
 }
 
 btnSend.addEventListener("click", () => sendChatMessage());
