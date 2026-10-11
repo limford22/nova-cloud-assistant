@@ -3,69 +3,320 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="theme-color" content="#121722">
+  <meta name="theme-color" content="#070a13">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>Nova Cloud AI</title>
+  <title>Nova AI Hub</title>
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="style.css">
   <link rel="icon" type="image/png" href="icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 </head>
 <body>
 
+  <!-- Top Glass Header -->
   <header>
-    <div class="logo-area">
-      <div class="title-area">
-        <h1>Nova Cloud AI</h1>
-        <span>24/7 Companion</span>
+    <div class="brand">
+      <div class="brand-avatar">N</div>
+      <div class="brand-text">
+        <h2>Nova Hub</h2>
+        <span class="subtext">Cloud &bull; PC Mesh</span>
       </div>
     </div>
     
-    <!-- Real-time PC Bridge Status -->
-    <div class="pc-status-pill" id="pc-status-pill">
-      <span class="status-dot" id="pc-status-dot"></span>
-      <span id="pc-status-text">PC: Offline</span>
+    <div class="header-badges">
+      <div class="status-pill" id="pc-status-pill">
+        <span class="status-dot" id="pc-status-dot"></span>
+        <span id="pc-status-text">PC: Offline</span>
+      </div>
     </div>
   </header>
 
-  <!-- Hardware Telemetry Ribbon (Shows when PC is Online) -->
-  <div class="telemetry-bar" id="telemetry-bar">
-    <div class="badge" id="cpu-badge">CPU --%</div>
-    <div class="badge" id="ram-badge">RAM --%</div>
-    <div class="badge" id="bat-badge">⚡ --%</div>
-    <div class="badge" style="color: #10b981;">☁️ Gemini Cloud Active</div>
-  </div>
+  <!-- Main View Container (Tab Content) -->
+  <main class="content-area">
 
-  <!-- Quick Actions Ribbon -->
-  <div class="quick-actions">
-    <button class="btn-action" onclick="sendAction('lock')">🔒 Lock PC</button>
-    <button class="btn-action" onclick="sendAction('volume', {action: 'mute'})">🔇 Mute</button>
-    <button class="btn-action" onclick="sendAction('media', {action: 'play_pause'})">⏯️ Play/Pause</button>
-    <button class="btn-action" onclick="sendChatMessage('Check my PC battery and RAM')">📊 PC Status</button>
-    <button class="btn-action" onclick="sendAction('app', {app_name: 'chrome'})">💻 Chrome</button>
-    <button class="btn-action" onclick="sendAction('app', {app_name: 'spotify'})">🎵 Spotify</button>
-  </div>
-
-  <!-- Chat Log -->
-  <main id="chat-container">
-    <div class="message assistant">
-      <div class="bubble">
-        👋 <strong>Hi Linford! Nova Cloud is ready.</strong><br>
-        Running 24/7 on the cloud with sub-second AI responses.<br><br>
-        • Ask any question or plan your day anytime from your phone.<br>
-        • When your Windows PC is on, use quick buttons or voice to control your PC remotely!
+    <!-- ================= TAB 1: REMOTE DESK ================= -->
+    <section class="tab-pane active" id="tab-remote">
+      
+      <!-- Telemetry Dashboard Card -->
+      <div class="card telemetry-card">
+        <div class="card-header">
+          <h3>Hardware Telemetry</h3>
+          <span class="badge-live" id="live-indicator">LIVE</span>
+        </div>
+        <div class="metrics-grid">
+          <div class="metric-item">
+            <span class="metric-label">CPU Load</span>
+            <div class="metric-value" id="cpu-val">--%</div>
+            <div class="progress-track"><div class="progress-bar" id="cpu-bar" style="width: 0%;"></div></div>
+          </div>
+          <div class="metric-item">
+            <span class="metric-label">RAM Usage</span>
+            <div class="metric-value" id="ram-val">--%</div>
+            <div class="progress-track"><div class="progress-bar bar-purple" id="ram-bar" style="width: 0%;"></div></div>
+          </div>
+          <div class="metric-item">
+            <span class="metric-label">Battery</span>
+            <div class="metric-value" id="bat-val">--%</div>
+            <div class="progress-track"><div class="progress-bar bar-green" id="bat-bar" style="width: 0%;"></div></div>
+          </div>
+          <div class="metric-item">
+            <span class="metric-label">Disk (C:)</span>
+            <div class="metric-value" id="disk-val">--%</div>
+            <div class="progress-track"><div class="progress-bar bar-orange" id="disk-bar" style="width: 0%;"></div></div>
+          </div>
+        </div>
       </div>
-    </div>
+
+      <!-- Power & Security Card -->
+      <div class="card">
+        <div class="card-header">
+          <h3>Power &amp; Workstation</h3>
+        </div>
+        <div class="button-grid grid-3">
+          <button class="action-btn btn-danger-soft" onclick="confirmAction('lock', 'Lock PC Workstation?')">
+            <span class="btn-icon">🔒</span>
+            <span class="btn-text">Lock PC</span>
+          </button>
+          <button class="action-btn btn-warning-soft" onclick="confirmAction('sleep', 'Put PC to Sleep?')">
+            <span class="btn-icon">💤</span>
+            <span class="btn-text">Sleep PC</span>
+          </button>
+          <button class="action-btn" onclick="sendAction('clean')">
+            <span class="btn-icon">🗑️</span>
+            <span class="btn-text">Empty Trash</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Media & Audio Deck -->
+      <div class="card">
+        <div class="card-header">
+          <h3>Media &amp; Master Audio</h3>
+        </div>
+        <div class="media-controls">
+          <button class="media-btn" onclick="sendAction('media', {action: 'prev'})">⏮️</button>
+          <button class="media-btn play-btn" onclick="sendAction('media', {action: 'play_pause'})">⏯️</button>
+          <button class="media-btn" onclick="sendAction('media', {action: 'next'})">⏭️</button>
+          <button class="media-btn" onclick="sendAction('volume', {action: 'mute'})" id="mute-btn">🔇</button>
+        </div>
+        <div class="volume-slider-row">
+          <span>🔈</span>
+          <input type="range" min="0" max="100" value="50" class="slider" id="volume-slider" onchange="adjustVolume(this.value)">
+          <span>🔊</span>
+        </div>
+      </div>
+
+      <!-- Smart Routines -->
+      <div class="card">
+        <div class="card-header">
+          <h3>One-Tap Routines</h3>
+        </div>
+        <div class="button-grid grid-3">
+          <button class="routine-btn" onclick="runRoutine('night')">
+            <span class="routine-icon">🌙</span>
+            <strong>Good Night</strong>
+            <small>Lock &amp; Mute</small>
+          </button>
+          <button class="routine-btn" onclick="runRoutine('work')">
+            <span class="routine-icon">💼</span>
+            <strong>Work Mode</strong>
+            <small>Chrome + Code</small>
+          </button>
+          <button class="routine-btn" onclick="runRoutine('music')">
+            <span class="routine-icon">🎵</span>
+            <strong>Vibe Mode</strong>
+            <small>Spotify + Unmute</small>
+          </button>
+        </div>
+      </div>
+
+      <!-- Application Quick Deck -->
+      <div class="card">
+        <div class="card-header">
+          <h3>Launch PC Applications</h3>
+        </div>
+        <div class="app-deck-grid">
+          <button class="app-item" onclick="sendAction('app', {app_name: 'chrome'})">
+            <div class="app-icon-wrap">🌐</div>
+            <span>Chrome</span>
+          </button>
+          <button class="app-item" onclick="sendAction('app', {app_name: 'spotify'})">
+            <div class="app-icon-wrap">🎵</div>
+            <span>Spotify</span>
+          </button>
+          <button class="app-item" onclick="sendAction('app', {app_name: 'code'})">
+            <div class="app-icon-wrap">💻</div>
+            <span>VS Code</span>
+          </button>
+          <button class="app-item" onclick="sendAction('app', {app_name: 'explorer'})">
+            <div class="app-icon-wrap">📁</div>
+            <span>Explorer</span>
+          </button>
+          <button class="app-item" onclick="sendAction('app', {app_name: 'terminal'})">
+            <div class="app-icon-wrap">⚡</div>
+            <span>Terminal</span>
+          </button>
+          <button class="app-item" onclick="sendAction('app', {app_name: 'taskmgr'})">
+            <div class="app-icon-wrap">📊</div>
+            <span>Task Mgr</span>
+          </button>
+          <button class="app-item" onclick="sendAction('app', {app_name: 'calc'})">
+            <div class="app-icon-wrap">🔢</div>
+            <span>Calculator</span>
+          </button>
+          <button class="app-item" onclick="sendAction('app', {app_name: 'notepad'})">
+            <div class="app-icon-wrap">📝</div>
+            <span>Notepad</span>
+          </button>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ================= TAB 2: AI ASSISTANT ================= -->
+    <section class="tab-pane" id="tab-chat">
+      <div id="chat-messages" class="chat-messages">
+        <div class="chat-bubble assistant">
+          👋 <strong>Hi Linford! I am Nova.</strong><br>
+          Connected 24/7 in the cloud. You can talk to me via voice or text to answer questions, brainstorm, or execute remote PC actions.
+        </div>
+      </div>
+
+      <!-- Chat Input Area -->
+      <div class="chat-input-bar">
+        <button class="btn-circle btn-mic" id="btn-mic" title="Voice Input">🎙️</button>
+        <input type="text" id="chat-input" placeholder="Ask Nova anything or speak..." autocomplete="off">
+        <button class="btn-circle btn-send" id="btn-send">➤</button>
+      </div>
+    </section>
+
+    <!-- ================= TAB 3: TOOLS & SYNC ================= -->
+    <section class="tab-pane" id="tab-tools">
+      
+      <!-- Universal Clipboard Sync -->
+      <div class="card">
+        <div class="card-header">
+          <h3>Universal Clipboard Sync</h3>
+          <span class="badge-tag">Phone &harr; PC</span>
+        </div>
+        <p class="card-desc">Type or paste text here to push it directly into your Windows PC clipboard.</p>
+        <textarea id="clipboard-input" rows="3" placeholder="Paste link or text to send to PC clipboard..."></textarea>
+        <div class="button-grid grid-2" style="margin-top: 10px;">
+          <button class="action-btn btn-primary" onclick="sendClipboardToPC()">
+            <span>📋 Push to PC Clipboard</span>
+          </button>
+          <button class="action-btn" onclick="fetchPCClipboard()">
+            <span>📥 Fetch from PC</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Remote Screen Capture -->
+      <div class="card">
+        <div class="card-header">
+          <h3>Remote Screen Capture</h3>
+          <span class="badge-tag">Desktop View</span>
+        </div>
+        <p class="card-desc">Snap a remote screenshot of your PC's active desktop.</p>
+        <button class="action-btn btn-primary" style="width: 100%; margin-bottom: 12px;" onclick="requestScreenshot()">
+          📸 Snap Desktop Screenshot
+        </button>
+        <div id="screenshot-preview-container" class="screenshot-box" style="display: none;">
+          <img id="screenshot-img" src="" alt="Remote Desktop">
+        </div>
+      </div>
+
+      <!-- Quick Note to Desktop -->
+      <div class="card">
+        <div class="card-header">
+          <h3>Quick Desktop Note</h3>
+        </div>
+        <input type="text" id="note-input" placeholder="Enter note snippet...">
+        <button class="action-btn btn-primary" style="width: 100%; margin-top: 10px;" onclick="saveDesktopNote()">
+          💾 Save to Desktop/Assistant_Notes.md
+        </button>
+      </div>
+
+      <!-- Remote File Search -->
+      <div class="card">
+        <div class="card-header">
+          <h3>Search PC Files</h3>
+        </div>
+        <div class="search-row">
+          <input type="text" id="file-search-input" placeholder="Search filename (e.g. .pdf, budget, notes)...">
+          <button class="action-btn btn-primary" onclick="searchPCFiles()">🔍</button>
+        </div>
+        <div id="file-results-container" class="results-list"></div>
+      </div>
+
+    </section>
+
+    <!-- ================= TAB 4: SETTINGS ================= -->
+    <section class="tab-pane" id="tab-settings">
+      <div class="card">
+        <div class="card-header">
+          <h3>Cloud Intelligence (Gemini)</h3>
+        </div>
+        <p class="card-desc">Enter your free Gemini API key to enable direct conversational reasoning in the browser:</p>
+        <input type="password" id="gemini-key-input" placeholder="AIzaSy...">
+        <button class="action-btn btn-primary" style="width: 100%; margin-top: 10px;" onclick="saveGeminiKey()">
+          💾 Save API Key
+        </button>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h3>Connection Diagnostics</h3>
+        </div>
+        <div class="diag-item">
+          <span>Cloud Relay</span>
+          <span class="diag-val" style="color: #10b981;">broker.hivemq.com (Active)</span>
+        </div>
+        <div class="diag-item">
+          <span>Private Channel</span>
+          <span class="diag-val">nova/limford22</span>
+        </div>
+        <div class="diag-item">
+          <span>Hosting Provider</span>
+          <span class="diag-val">GitHub Enterprise CDN</span>
+        </div>
+        <div class="diag-item">
+          <span>Haptic Vibrations</span>
+          <label class="switch">
+            <input type="checkbox" id="haptic-toggle" checked>
+            <span class="slider-round"></span>
+          </label>
+        </div>
+      </div>
+    </section>
+
   </main>
 
-  <!-- Footer Input & Voice -->
-  <footer>
-    <div class="input-box-wrapper">
-      <button class="icon-btn btn-mic" id="btn-mic" title="Voice Input">🎙️</button>
-      <input type="text" id="user-input" placeholder="Ask Nova or command PC..." autocomplete="off">
-      <button class="icon-btn btn-send" id="btn-send" title="Send">➤</button>
-    </div>
-  </footer>
+  <!-- Bottom Navigation Bar (Samsung One UI Style) -->
+  <nav class="bottom-nav">
+    <button class="nav-item active" data-tab="tab-remote">
+      <span class="nav-icon">🎮</span>
+      <span class="nav-label">Remote</span>
+    </button>
+    <button class="nav-item" data-tab="tab-chat">
+      <span class="nav-icon">💬</span>
+      <span class="nav-label">Assistant</span>
+    </button>
+    <button class="nav-item" data-tab="tab-tools">
+      <span class="nav-icon">🛠️</span>
+      <span class="nav-label">Tools</span>
+    </button>
+    <button class="nav-item" data-tab="tab-settings">
+      <span class="nav-icon">⚙️</span>
+      <span class="nav-label">Settings</span>
+    </button>
+  </nav>
+
+  <!-- Toast Notification System -->
+  <div id="toast" class="toast"></div>
 
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
   <script src="app.js"></script>
