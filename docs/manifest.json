@@ -1,0 +1,21 @@
+{
+  "name": "Nova Cloud Assistant",
+  "short_name": "Nova Cloud",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0d14",
+  "theme_color": "#121722",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/static/icon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/static/icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
