@@ -1,3 +1,10 @@
+// Register Service Worker for PWA installation
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(err => console.debug('SW reg failed', err));
+  });
+}
+
 // DOM Elements
 const chatContainer = document.getElementById("chat-container");
 const userInput = document.getElementById("user-input");
