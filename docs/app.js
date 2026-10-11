@@ -63,13 +63,20 @@ navItems.forEach(item => {
     triggerHaptic();
     const targetId = item.dataset.tab;
     navItems.forEach(i => i.classList.remove("active"));
-    tabPanes.forEach(p => p.classList.remove("active"));
+    tabPanes.forEach(p => {
+      p.classList.remove("active");
+      p.style.display = "none";
+    });
 
     item.classList.add("active");
     const targetPane = document.getElementById(targetId);
-    if (targetPane) targetPane.classList.add("active");
+    if (targetPane) {
+      targetPane.classList.add("active");
+      targetPane.style.display = "flex";
+    }
   });
 });
+
 
 // MQTT Real-time Cloud Mesh
 function initMQTT() {
