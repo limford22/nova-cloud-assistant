@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#121722">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Nova Cloud AI</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="icon" type="image/png" href="/static/icon.png">
+</head>
+<body>
+
+  <header>
+    <div class="logo-area">
+      <div class="title-area">
+        <h1>Nova Cloud AI</h1>
+        <span>24/7 Companion</span>
+      </div>
+    </div>
+    
+    <!-- Real-time PC Bridge Status -->
+    <div class="pc-status-pill" id="pc-status-pill">
+      <span class="status-dot" id="pc-status-dot"></span>
+      <span id="pc-status-text">PC: Offline</span>
+    </div>
+  </header>
+
+  <!-- Hardware Telemetry Ribbon (Shows when PC is Online) -->
+  <div class="telemetry-bar" id="telemetry-bar">
+    <div class="badge" id="cpu-badge">CPU --%</div>
+    <div class="badge" id="ram-badge">RAM --%</div>
+    <div class="badge" id="bat-badge">⚡ --%</div>
+    <div class="badge" style="color: #10b981;">☁️ Gemini Cloud Active</div>
+  </div>
+
+  <!-- Quick Actions Ribbon -->
+  <div class="quick-actions">
+    <button class="btn-action" onclick="sendAction('lock')">🔒 Lock PC</button>
+    <button class="btn-action" onclick="sendAction('volume', {action: 'mute'})">🔇 Mute</button>
+    <button class="btn-action" onclick="sendAction('media', {action: 'play_pause'})">⏯️ Play/Pause</button>
+    <button class="btn-action" onclick="sendChatMessage('Check my PC battery and RAM')">📊 PC Status</button>
+    <button class="btn-action" onclick="sendAction('app', {app_name: 'chrome'})">💻 Chrome</button>
+    <button class="btn-action" onclick="sendAction('app', {app_name: 'spotify'})">🎵 Spotify</button>
+  </div>
+
+  <!-- Chat Log -->
+  <main id="chat-container">
+    <div class="message assistant">
+      <div class="bubble">
+        👋 <strong>Hi Linford! Nova Cloud is ready.</strong><br>
+        Running 24/7 on the cloud with sub-second AI responses.<br><br>
+        • Ask any question or plan your day anytime from your phone.<br>
+        • When your Windows PC is on, use quick buttons or voice to control your PC remotely!
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer Input & Voice -->
+  <footer>
+    <div class="input-box-wrapper">
+      <button class="icon-btn btn-mic" id="btn-mic" title="Voice Input">🎙️</button>
+      <input type="text" id="user-input" placeholder="Ask Nova or command PC..." autocomplete="off">
+      <button class="icon-btn btn-send" id="btn-send" title="Send">➤</button>
+    </div>
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
