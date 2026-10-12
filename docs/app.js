@@ -278,9 +278,9 @@ function killProcess(name) {
   }
 }
 
-// Watchdog timer: marks PC offline if no ping in 12s
+// Watchdog timer: marks PC offline if no ping in 40s
 setInterval(() => {
-  if (isPCOnline && (Date.now() - lastPCPing > 12000)) {
+  if (isPCOnline && (Date.now() - lastPCPing > 40000)) {
     isPCOnline = false;
     if (pcStatusDot) pcStatusDot.classList.remove("online");
     if (pcStatusText) pcStatusText.textContent = "PC: Offline";
@@ -290,7 +290,7 @@ setInterval(() => {
     if (batVal) { batVal.textContent = "--%"; batBar.style.width = "0%"; }
     if (diskVal) { diskVal.textContent = "--%"; diskBar.style.width = "0%"; }
   }
-}, 4000);
+}, 5000);
 
 // ================= GATHER & BROADCAST MOBILE PHONE SPECS =================
 async function gatherAndSendPhoneTelemetry() {
@@ -331,7 +331,7 @@ async function gatherAndSendPhoneTelemetry() {
   } catch (e) {}
 }
 
-setInterval(gatherAndSendPhoneTelemetry, 4000);
+setInterval(gatherAndSendPhoneTelemetry, 20000);
 gatherAndSendPhoneTelemetry();
 
 // ================= BIDIRECTIONAL ACTIONS (EQUAL POWERS) =================
