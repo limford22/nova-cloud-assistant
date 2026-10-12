@@ -1376,11 +1376,15 @@
           <div class="bio-scan-readout" id="gate-scan-readout">STANDBY: POSITION FACE IN RETICLE</div>
         </div>
 
-        <div class="bio-gate-actions" style="width: 100%;">
+        <div class="bio-gate-actions" style="width: 100%; display: flex; flex-direction: column; gap: 8px;">
           <button class="btn-bio-verify" id="btn-start-face-scan" onclick="startBiometricFaceScan()">
             ⚡ INITIALIZE RETINAL & OPTICAL SCAN
           </button>
+          <button type="button" class="btn-bio-enroll" onclick="enrollLimfordFace()" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(6,182,212,0.3); color: #94a3b8; font-size: 0.72rem; padding: 6px 12px; border-radius: 8px; cursor: pointer;">
+            📸 Calibrate Limford's Biometrics
+          </button>
         </div>
+        <canvas id="gate-canvas" width="160" height="120" style="display: none;"></canvas>
       </div>
 
       <!-- Mode 2: Voiceprint Biometrics View -->
