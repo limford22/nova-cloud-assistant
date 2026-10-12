@@ -1,5 +1,5 @@
-// Leags PWA Service Worker - v9 (Enhanced Face ID Gaussian Matching & Enrollment Auto-Recovery)
-const CACHE_NAME = 'leags-cache-v9';
+// Leags PWA Service Worker - v10 (Hands-Free Camera, Call HUD, Background Keep-Alive & High-Discrimination Face ID)
+const CACHE_NAME = 'leags-cache-v10';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();

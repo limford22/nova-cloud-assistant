@@ -2135,6 +2135,50 @@
     </button>
   </div>
 
+  <!-- Live In-App Phone Camera Modal -->
+  <div id="modal-phone-camera" style="display:none; position:fixed; inset:0; z-index:99999; background:#070a13; flex-direction:column; justify-content:space-between; align-items:center; padding:16px;">
+    <div style="width:100%; display:flex; justify-content:space-between; align-items:center; z-index:10; padding:4px 8px;">
+      <span style="color:#22d3ee; font-weight:700; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+        📷 <span>PHONE CAMERA FEED</span>
+      </span>
+      <button onclick="closePhoneCameraModal()" style="background:rgba(255,255,255,0.15); color:#fff; border:none; border-radius:50%; width:38px; height:38px; font-size:1.2rem; cursor:pointer;">✕</button>
+    </div>
+    <div style="position:relative; width:100%; max-width:480px; flex:1; display:flex; justify-content:center; align-items:center; overflow:hidden; border-radius:18px; margin:12px 0; background:#000; border:1px solid rgba(34,211,238,0.3);">
+      <video id="phone-cam-video" autoplay playsinline muted style="width:100%; height:100%; object-fit:cover; border-radius:16px;"></video>
+      <canvas id="phone-cam-canvas" style="display:none;"></canvas>
+      <div id="phone-cam-grid" style="position:absolute; inset:0; pointer-events:none; border:2px dashed rgba(34,211,238,0.35); border-radius:16px;"></div>
+    </div>
+    <div style="width:100%; max-width:480px; display:flex; justify-content:space-around; align-items:center; z-index:10; padding-bottom:8px;">
+      <button onclick="togglePhoneCameraFacing()" style="background:rgba(30,41,59,0.9); color:#fff; border:1px solid rgba(255,255,255,0.2); border-radius:30px; padding:12px 18px; font-size:0.95rem; cursor:pointer;">
+        🔄 Switch
+      </button>
+      <button onclick="snapAndSendToPC()" style="background:linear-gradient(135deg, #06b6d4, #6366f1); color:#fff; border:none; border-radius:30px; padding:14px 24px; font-size:1rem; font-weight:800; cursor:pointer; box-shadow:0 0 20px rgba(6,182,212,0.4);">
+        📸 Snap & Send PC
+      </button>
+      <button onclick="togglePhoneCameraTorch()" style="background:rgba(30,41,59,0.9); color:#fff; border:1px solid rgba(255,255,255,0.2); border-radius:30px; padding:12px 18px; font-size:0.95rem; cursor:pointer;">
+        💡 Torch
+      </button>
+    </div>
+  </div>
+
+  <!-- Hands-Free Call HUD Modal -->
+  <div id="modal-phone-call" style="display:none; position:fixed; inset:0; z-index:99998; background:rgba(7,10,19,0.96); backdrop-filter:blur(16px); flex-direction:column; justify-content:center; align-items:center; padding:24px; text-align:center;">
+    <div style="font-size:4rem; margin-bottom:12px;">📞</div>
+    <h2 id="call-hud-name" style="font-size:1.8rem; font-weight:800; color:#fff; margin-bottom:6px;">Contact</h2>
+    <p id="call-hud-number" style="color:#22d3ee; font-size:1.15rem; font-family:monospace; margin-bottom:20px;">Routing Call Hands-Free...</p>
+    <div style="display:flex; flex-direction:column; gap:12px; width:100%; max-width:320px;">
+      <button id="call-hud-dial-btn" onclick="executeDialNow()" style="background:linear-gradient(135deg, #10b981, #06b6d4); color:#fff; border:none; border-radius:30px; padding:14px 28px; font-size:1.05rem; font-weight:800; cursor:pointer; box-shadow:0 0 20px rgba(16,185,129,0.4);">
+        🟢 Connect Call
+      </button>
+      <button id="call-hud-whatsapp-btn" onclick="executeWhatsAppCall()" style="background:#25D366; color:#fff; border:none; border-radius:30px; padding:12px 24px; font-size:1rem; font-weight:800; cursor:pointer;">
+        💬 Call via WhatsApp
+      </button>
+      <button onclick="closeCallHUD()" style="background:rgba(239,68,68,0.2); color:#ef4444; border:1px solid rgba(239,68,68,0.4); border-radius:30px; padding:12px 24px; font-size:0.95rem; font-weight:700; cursor:pointer; margin-top:6px;">
+        ✕ Cancel
+      </button>
+    </div>
+  </div>
+
   <!-- Bottom Navigation Bar -->
   <nav class="bottom-nav">
     <button class="nav-item active" data-tab="tab-remote">
@@ -2159,6 +2203,6 @@
   <div id="toast" class="toast"></div>
 
   <!-- App Script with Cache-Busting -->
-  <script src="app.js?v=faceid-v9"></script>
+  <script src="app.js?v=faceid-v10"></script>
 </body>
 </html>
