@@ -1082,12 +1082,30 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      transition: all 0.4s ease;
+    }
+
+    .viewfinder-circle.verified {
+      border: 2px solid #10b981 !important;
+      box-shadow: 0 0 35px rgba(16, 185, 129, 0.6) !important;
+    }
+
+    .viewfinder-circle.denied {
+      border: 2px solid #ef4444 !important;
+      box-shadow: 0 0 35px rgba(239, 68, 68, 0.6) !important;
     }
 
     .viewfinder-circle video {
       width: 100%;
       height: 100%;
       object-fit: cover;
+      transform-origin: 52% 40%;
+      transition: transform 0.9s cubic-bezier(0.2, 0.8, 0.2, 1), filter 0.6s ease;
+    }
+
+    .viewfinder-circle video.ocular-zoomed {
+      transform: scale(3.5) translate(-6%, -12%);
+      filter: contrast(1.2) brightness(1.06) saturate(1.1);
     }
 
     .laser-scanner {
@@ -1098,6 +1116,7 @@
       box-shadow: 0 0 15px #22d3ee;
       animation: laserSweep 1.8s infinite alternate ease-in-out;
       display: none;
+      z-index: 10;
     }
 
     @keyframes laserSweep {
@@ -1105,13 +1124,56 @@
       100% { top: 95%; }
     }
 
+    .retinal-crosshair {
+      position: absolute;
+      top: 50%; left: 50%;
+      width: 100%; height: 100%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 4;
+    }
+
+    .retinal-axis-h {
+      position: absolute;
+      width: 100%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.6), transparent);
+    }
+
+    .retinal-axis-v {
+      position: absolute;
+      height: 100%;
+      width: 1px;
+      background: linear-gradient(180deg, transparent, rgba(34, 211, 238, 0.6), transparent);
+    }
+
+    .retinal-pupil-dot {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      border: 2px solid #22d3ee;
+      box-shadow: 0 0 12px #06b6d4, inset 0 0 6px #22d3ee;
+      animation: pupilPulse 1.2s infinite ease-in-out;
+      z-index: 5;
+    }
+
+    @keyframes pupilPulse {
+      0% { transform: scale(0.85); opacity: 0.7; }
+      50% { transform: scale(1.25); opacity: 1; }
+      100% { transform: scale(0.85); opacity: 0.7; }
+    }
+
     .iris-target {
       position: absolute;
       top: 50%; left: 50%;
       transform: translate(-50%, -50%);
-      width: 70px;
-      height: 70px;
+      width: 80px;
+      height: 80px;
       pointer-events: none;
+      z-index: 3;
     }
 
     .iris-ring {
@@ -1131,10 +1193,17 @@
       border: 1px solid rgba(16, 185, 129, 0.6);
     }
 
+    .iris-ring.ring-3 {
+      inset: 22px;
+      border: 1px dashed rgba(245, 158, 11, 0.7);
+      animation: rotateClockwise 12s infinite linear reverse;
+    }
+
     @keyframes rotateClockwise {
       from { transform: rotate(0deg); }
       to { transform: rotate(360deg); }
     }
+
 
     .bio-progress-container {
       width: 90%;
@@ -1255,53 +1324,6 @@
       line-height: 1.4;
     }
 
-    /* PIN Keypad */
-    .pin-display {
-      display: flex;
-      gap: 12px;
-      margin-bottom: 8px;
-    }
-
-    .pin-dot {
-      width: 14px;
-      height: 14px;
-      border-radius: 50%;
-      border: 2px solid #06b6d4;
-      background: transparent;
-      transition: background 0.2s;
-    }
-
-    .pin-dot.filled {
-      background: #06b6d4;
-      box-shadow: 0 0 10px #06b6d4;
-    }
-
-    .pin-keypad {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
-      width: 200px;
-    }
-
-    .pin-btn {
-      background: rgba(15, 23, 42, 0.85);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      color: #fff;
-      font-size: 1.2rem;
-      font-weight: 700;
-      height: 44px;
-      border-radius: 12px;
-      cursor: pointer;
-      transition: all 0.15s;
-    }
-
-    .pin-btn:active {
-      background: rgba(6, 182, 212, 0.3);
-      transform: scale(0.95);
-    }
-
-    .pin-clear { color: #f87171; }
-    .pin-enter { color: #34d399; }
 
     .bio-sync-status {
       display: flex;
@@ -1338,20 +1360,17 @@
         </div>
       </div>
 
-      <!-- Mode Selector Tabs -->
+      <!-- Mode Selector Tabs (Strict Biometrics Only - No PIN) -->
       <div class="bio-mode-tabs">
         <button class="bio-tab-btn active" id="tab-btn-retinal" onclick="switchBioMode('retinal')">
-          <span>👁️ Retinal Scan</span>
+          <span>👁️ Retinal & Ocular Scan</span>
         </button>
         <button class="bio-tab-btn" id="tab-btn-voice" onclick="switchBioMode('voice')">
-          <span>🎙️ Voiceprint</span>
-        </button>
-        <button class="bio-tab-btn" id="tab-btn-pin" onclick="switchBioMode('pin')">
-          <span>🔢 PIN</span>
+          <span>🎙️ Voiceprint Acoustic</span>
         </button>
       </div>
 
-      <!-- Mode 1: Retinal & Optical Face Scan View -->
+      <!-- Mode 1: Retinal & Ocular Scan View with Dynamic Eye Zoom -->
       <div class="bio-mode-content" id="bio-mode-retinal">
         <div class="bio-scanner-frame">
           <div class="cyber-bracket top-left"></div>
@@ -1359,12 +1378,21 @@
           <div class="cyber-bracket bottom-left"></div>
           <div class="cyber-bracket bottom-right"></div>
 
-          <div class="viewfinder-circle">
+          <div class="viewfinder-circle" id="gate-viewfinder">
             <video id="gate-camera-feed" autoplay playsinline muted></video>
             <div class="laser-scanner" id="gate-laser"></div>
+
+            <!-- Retinal HUD Targeting Matrix -->
+            <div class="retinal-crosshair" id="gate-retinal-hud">
+              <div class="retinal-axis-h"></div>
+              <div class="retinal-axis-v"></div>
+              <div class="retinal-pupil-dot" id="gate-pupil-dot"></div>
+            </div>
+
             <div class="iris-target" id="gate-iris">
               <div class="iris-ring ring-1"></div>
               <div class="iris-ring ring-2"></div>
+              <div class="iris-ring ring-3"></div>
             </div>
           </div>
         </div>
@@ -1373,21 +1401,21 @@
           <div class="bio-progress-track">
             <div class="bio-progress-fill" id="gate-scan-fill"></div>
           </div>
-          <div class="bio-scan-readout" id="gate-scan-readout">STANDBY: POSITION FACE IN RETICLE</div>
+          <div class="bio-scan-readout" id="gate-scan-readout">STANDBY: POSITION EYE IN RETICLE</div>
         </div>
 
         <div class="bio-gate-actions" style="width: 100%; display: flex; flex-direction: column; gap: 8px;">
-          <button class="btn-bio-verify" id="btn-start-face-scan" onclick="startBiometricFaceScan()">
-            ⚡ INITIALIZE RETINAL & OPTICAL SCAN
+          <button class="btn-bio-verify" id="btn-start-face-scan" onclick="startBiometricFaceScan(false)">
+            ⚡ RE-SCAN RETINA & OCULAR PROFILE
           </button>
-          <button type="button" class="btn-bio-enroll" onclick="enrollLimfordFace()" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(6,182,212,0.3); color: #94a3b8; font-size: 0.72rem; padding: 6px 12px; border-radius: 8px; cursor: pointer;">
-            📸 Calibrate Limford's Biometrics
+          <button type="button" class="btn-bio-enroll" onclick="enrollLimfordRetina()" style="background: rgba(6, 182, 212, 0.12); border: 1px solid rgba(6,182,212,0.4); color: #67e8f9; font-size: 0.76rem; font-weight: 700; padding: 8px 12px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+            👁️ Calibrate Limford's Retinal Biometrics
           </button>
         </div>
         <canvas id="gate-canvas" width="160" height="120" style="display: none;"></canvas>
       </div>
 
-      <!-- Mode 2: Voiceprint Biometrics View -->
+      <!-- Mode 2: Acoustic Voiceprint Biometrics View -->
       <div class="bio-mode-content" id="bio-mode-voice" style="display: none;">
         <div class="voice-waveform-container">
           <div class="voice-mic-glow" id="gate-mic-icon" onclick="startGateVoiceVerify()">🎙️</div>
@@ -1398,42 +1426,20 @@
           </div>
         </div>
         <p class="voice-prompt-text">
-          Tap mic and speak passphrase:<br>
+          Speak operator passphrase clearly:<br>
           <strong style="color: #67e8f9;">"I am Limford, authorize Leags."</strong>
         </p>
-        <div class="bio-scan-readout" id="gate-voice-readout">VOICE SENSOR READY</div>
-        <div class="bio-gate-actions" style="width: 100%;">
-          <button class="btn-bio-verify" onclick="startGateVoiceVerify()">
+        <div class="bio-scan-readout" id="gate-voice-readout">ACOUSTIC FFT SENSOR READY</div>
+        <div class="bio-gate-actions" style="width: 100%; display: flex; flex-direction: column; gap: 8px;">
+          <button class="btn-bio-verify" id="btn-start-voice-scan" onclick="startGateVoiceVerify()">
             🎙️ EXAMINE VOICE FREQUENCIES
+          </button>
+          <button type="button" class="btn-bio-enroll" onclick="enrollLimfordVoiceprint()" style="background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16,185,129,0.4); color: #6ee7b7; font-size: 0.76rem; font-weight: 700; padding: 8px 12px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+            🎙️ Calibrate Limford's Voiceprint
           </button>
         </div>
       </div>
 
-      <!-- Mode 3: Security Passcode PIN View -->
-      <div class="bio-mode-content" id="bio-mode-pin" style="display: none;">
-        <p style="font-size: 0.78rem; color: #94a3b8;">Enter 4-Digit Security Master PIN</p>
-        <div class="pin-display">
-          <span class="pin-dot" id="pdot-1"></span>
-          <span class="pin-dot" id="pdot-2"></span>
-          <span class="pin-dot" id="pdot-3"></span>
-          <span class="pin-dot" id="pdot-4"></span>
-        </div>
-        <div class="pin-keypad">
-          <button class="pin-btn" onclick="pressPin('1')">1</button>
-          <button class="pin-btn" onclick="pressPin('2')">2</button>
-          <button class="pin-btn" onclick="pressPin('3')">3</button>
-          <button class="pin-btn" onclick="pressPin('4')">4</button>
-          <button class="pin-btn" onclick="pressPin('5')">5</button>
-          <button class="pin-btn" onclick="pressPin('6')">6</button>
-          <button class="pin-btn" onclick="pressPin('7')">7</button>
-          <button class="pin-btn" onclick="pressPin('8')">8</button>
-          <button class="pin-btn" onclick="pressPin('9')">9</button>
-          <button class="pin-btn pin-clear" onclick="clearPin()">C</button>
-          <button class="pin-btn" onclick="pressPin('0')">0</button>
-          <button class="pin-btn pin-enter" onclick="submitPin()">✓</button>
-        </div>
-        <div class="bio-scan-readout" id="gate-pin-readout" style="margin-top: 4px;">DEFAULT PIN: 2026</div>
-      </div>
 
       <div class="bio-sync-status">
         <span>🔄</span>
