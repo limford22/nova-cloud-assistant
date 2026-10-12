@@ -1186,12 +1186,13 @@ let gateCameraStream = null;
 let activeBioMode = "retinal";
 let isScanningRetina = false;
 
-// Default reference baseline for Limford's retina & iris ocular matrix
+// Baseline reference vector for Limford's retina & iris ocular matrix
 const DEFAULT_LIMFORD_RETINAL_VECTOR = {
-  irisRings: [0.14, 0.31, 0.48, 0.62, 0.54, 0.44, 0.36, 0.28],
-  pupilContrast: 0.68,
-  eyeRGB: [135, 115, 95],
-  ocularHist: [0.03, 0.05, 0.08, 0.12, 0.16, 0.18, 0.15, 0.09, 0.06, 0.04, 0.02, 0.01, 0.01, 0.0, 0.0, 0.0]
+  rings: [0.65, 0.95, 1.15, 1.10, 0.92, 0.82],
+  pupilContrast: 0.55,
+  textureDensity: 0.42,
+  rgbRatio: [0.48, 0.42, 0.36],
+  lumHist: [0.04, 0.08, 0.12, 0.16, 0.18, 0.16, 0.12, 0.07, 0.04, 0.02, 0.01, 0.0]
 };
 
 function getEnrolledRetinalVector() {
@@ -1202,10 +1203,11 @@ function getEnrolledRetinalVector() {
   return DEFAULT_LIMFORD_RETINAL_VECTOR;
 }
 
-// Default reference baseline for Limford's acoustic voiceprint (8 frequency bands + spectral centroid)
+// Baseline reference vector for Limford's acoustic voiceprint (pitch F0, 8 frequency bands, centroid)
 const DEFAULT_LIMFORD_VOICE_VECTOR = {
-  bands: [0.38, 0.72, 0.85, 0.62, 0.45, 0.31, 0.18, 0.09],
-  centroid: 680
+  pitch: 135,
+  bands: [0.42, 0.78, 0.92, 0.70, 0.52, 0.35, 0.22, 0.12],
+  centroid: 720
 };
 
 function getEnrolledVoiceVector() {
@@ -1216,107 +1218,207 @@ function getEnrolledVoiceVector() {
   return DEFAULT_LIMFORD_VOICE_VECTOR;
 }
 
-// ---------------- RETINAL FEATURE EXTRACTION & COMPARISON ----------------
-function extractRetinalFeatures(videoEl, canvasEl) {
-  if (!canvasEl || !videoEl) return null;
+function isBiometricsEnrolled() {
+  return localStorage.getItem("leags_biometrics_enrolled") === "true";
+}
+
+function updateLockScreenEnrollmentVisibility() {
+  const retinaEnroll = document.getElementById("retinal-enroll-container");
+  const voiceEnroll = document.getElementById("voice-enroll-container");
+  const enrolled = isBiometricsEnrolled();
+
+  // Once enrolled, NEVER show calibration or setup buttons on the lock screen!
+  // No unauthorized stranger at the lock screen can ever reset Limford's biometrics.
+  if (retinaEnroll) retinaEnroll.style.display = enrolled ? "none" : "block";
+  if (voiceEnroll) voiceEnroll.style.display = enrolled ? "none" : "block";
+}
+
+// ---------------- DYNAMIC FACE & EYE DETECTION ON CANVAS ----------------
+function findFaceAndEyeRegion(videoEl, canvasEl) {
+  if (!videoEl || !canvasEl) return { detected: false, eyeX: 160, eyeY: 100 };
+  canvasEl.width = 320;
+  canvasEl.height = 240;
   const ctx = canvasEl.getContext('2d');
-  canvasEl.width = 160;
-  canvasEl.height = 120;
-  ctx.drawImage(videoEl, 0, 0, 160, 120);
+  ctx.drawImage(videoEl, 0, 0, 320, 240);
 
-  const imgData = ctx.getImageData(0, 0, 160, 120).data;
-  const cX = 80;
-  const cY = 60;
+  const imgData = ctx.getImageData(0, 0, 320, 240).data;
+  let skinPixels = 0;
+  let sumX = 0, sumY = 0;
+  let minX = 320, maxX = 0, minY = 240, maxY = 0;
 
-  const ringRadii = [6, 12, 18, 24, 30, 36, 42, 48];
-  const ringBrightness = new Array(8).fill(0);
-  const ringCounts = new Array(8).fill(0);
-
-  let pupilLumSum = 0, pupilCount = 0;
-  let outerLumSum = 0, outerCount = 0;
-  let eyeR = 0, eyeG = 0, eyeB = 0, eyeCount = 0;
-  const ocularHist = new Array(16).fill(0);
-
-  for (let y = 15; y < 105; y++) {
-    for (let x = 35; x < 125; x++) {
-      const idx = (y * 160 + x) * 4;
+  // Scan every 2nd pixel for maximum speed and accuracy
+  for (let y = 15; y < 225; y += 2) {
+    for (let x = 30; x < 290; x += 2) {
+      const idx = (y * 320 + x) * 4;
       const r = imgData[idx];
       const g = imgData[idx + 1];
       const b = imgData[idx + 2];
-      const lum = 0.299 * r + 0.587 * g + 0.114 * b;
 
-      eyeR += r; eyeG += g; eyeB += b; eyeCount++;
-      const bin = Math.min(15, Math.floor(lum / 16));
-      ocularHist[bin]++;
+      const maxC = Math.max(r, g, b);
+      const minC = Math.min(r, g, b);
+      const isSkin = (r > 45 && g > 30 && b > 18 && (maxC - minC) > 10 && r > g && r > b);
 
-      const dist = Math.sqrt((x - cX) * (x - cX) + (y - cY) * (y - cY));
-      for (let k = 0; k < ringRadii.length; k++) {
-        if (Math.abs(dist - ringRadii[k]) <= 3) {
-          ringBrightness[k] += lum;
-          ringCounts[k]++;
-        }
-      }
-
-      if (dist < 6) {
-        pupilLumSum += lum; pupilCount++;
-      } else if (dist >= 35 && dist <= 50) {
-        outerLumSum += lum; outerCount++;
+      if (isSkin) {
+        skinPixels++;
+        sumX += x;
+        sumY += y;
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
       }
     }
   }
 
-  const avgPupil = pupilCount ? (pupilLumSum / pupilCount) : 50;
-  const avgOuter = outerCount ? (outerLumSum / outerCount) : 150;
-  const pupilContrast = Math.max(0, Math.min(1.0, (avgOuter - avgPupil) / 255));
+  // If face is not detected in view
+  if (skinPixels < 200) {
+    return { detected: false, eyeX: 160, eyeY: 100, skinPixels: 0 };
+  }
 
-  const irisRings = ringBrightness.map((sum, i) => {
-    return ringCounts[i] ? Number((sum / ringCounts[i] / 255).toFixed(3)) : 0.3;
-  });
+  const faceCenterX = sumX / skinPixels;
+  const faceWidth = Math.max(60, maxX - minX);
+  const faceHeight = Math.max(60, maxY - minY);
 
-  const ocularSamples = eyeCount || 1;
+  // Anatomical right eye coordinate (from camera perspective: upper right-center)
+  const targetEyeX = Math.round(faceCenterX + faceWidth * 0.12);
+  const targetEyeY = Math.round(minY + faceHeight * 0.35);
+
+  const eyeX = Math.max(50, Math.min(270, targetEyeX));
+  const eyeY = Math.max(40, Math.min(200, targetEyeY));
+
   return {
-    irisRings: irisRings,
-    pupilContrast: Number(pupilContrast.toFixed(3)),
-    eyeRGB: [
-      Math.round(eyeCount ? eyeR / eyeCount : 128),
-      Math.round(eyeCount ? eyeG / eyeCount : 128),
-      Math.round(eyeCount ? eyeB / eyeCount : 128)
-    ],
-    ocularHist: ocularHist.map(h => Number((h / ocularSamples).toFixed(3)))
+    detected: true,
+    eyeX: eyeX,
+    eyeY: eyeY,
+    faceWidth: faceWidth,
+    faceHeight: faceHeight,
+    skinPixels: skinPixels
   };
 }
 
-function calculateRetinalSimilarity(vec1, vec2) {
-  if (!vec1 || !vec2) return 0;
+// ---------------- ILLUMINATION-INVARIANT RETINAL FEATURE EXTRACTION ----------------
+function extractRetinalFeatures(videoEl, canvasEl) {
+  const loc = findFaceAndEyeRegion(videoEl, canvasEl);
+  if (!loc.detected) return null;
 
-  let dotRings = 0, magR1 = 0, magR2 = 0;
-  for (let i = 0; i < 8; i++) {
-    dotRings += vec1.irisRings[i] * vec2.irisRings[i];
-    magR1 += Math.pow(vec1.irisRings[i], 2);
-    magR2 += Math.pow(vec2.irisRings[i], 2);
+  const ctx = canvasEl.getContext('2d');
+  const patchSize = 48;
+  const startX = Math.max(0, Math.min(320 - patchSize, loc.eyeX - 24));
+  const startY = Math.max(0, Math.min(240 - patchSize, loc.eyeY - 24));
+  const patch = ctx.getImageData(startX, startY, patchSize, patchSize).data;
+
+  // 1. Locate Pupil Core (minimum luminance cluster)
+  let minLum = 255;
+  let pupilX = 24, pupilY = 24;
+  for (let py = 10; py < 38; py++) {
+    for (let px = 10; px < 38; px++) {
+      const idx = (py * patchSize + px) * 4;
+      const lum = 0.299 * patch[idx] + 0.587 * patch[idx + 1] + 0.114 * patch[idx + 2];
+      if (lum < minLum) {
+        minLum = lum;
+        pupilX = px;
+        pupilY = py;
+      }
+    }
   }
-  const ringsScore = (magR1 && magR2) ? (dotRings / (Math.sqrt(magR1) * Math.sqrt(magR2))) : 0.4;
 
-  const contrastDiff = Math.abs(vec1.pupilContrast - vec2.pupilContrast);
-  const contrastScore = Math.max(0, 1 - contrastDiff * 2.0);
+  // 2. Sample 6 Concentric Iris Rings around pupil core
+  const radii = [4, 8, 12, 16, 20, 24];
+  const ringLums = new Array(radii.length).fill(0);
+  const ringCounts = new Array(radii.length).fill(0);
 
-  const rDiff = Math.abs(vec1.eyeRGB[0] - vec2.eyeRGB[0]) / 255;
-  const gDiff = Math.abs(vec1.eyeRGB[1] - vec2.eyeRGB[1]) / 255;
-  const bDiff = Math.abs(vec1.eyeRGB[2] - vec2.eyeRGB[2]) / 255;
-  const colorScore = Math.max(0, 1 - (rDiff + gDiff + bDiff));
+  let edgeEnergySum = 0;
+  let eyeR = 0, eyeG = 0, eyeB = 0, sampleCount = 0;
+  const lumHist = new Array(12).fill(0);
 
+  for (let py = 2; py < patchSize - 2; py++) {
+    for (let px = 2; px < patchSize - 2; px++) {
+      const idx = (py * patchSize + px) * 4;
+      const r = patch[idx];
+      const g = patch[idx + 1];
+      const b = patch[idx + 2];
+      const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+
+      eyeR += r; eyeG += g; eyeB += b; sampleCount++;
+      const bin = Math.min(11, Math.floor(lum / 22));
+      lumHist[bin]++;
+
+      const dist = Math.sqrt((px - pupilX) * (px - pupilX) + (py - pupilY) * (py - pupilY));
+      for (let ri = 0; ri < radii.length; ri++) {
+        if (Math.abs(dist - radii[ri]) <= 2.2) {
+          ringLums[ri] += lum;
+          ringCounts[ri]++;
+        }
+      }
+
+      // Texture gradients (Sobel edge energy)
+      const idxRight = (py * patchSize + (px + 1)) * 4;
+      const idxDown = ((py + 1) * patchSize + px) * 4;
+      const lumRight = 0.299 * patch[idxRight] + 0.587 * patch[idxRight + 1] + 0.114 * patch[idxRight + 2];
+      const lumDown = 0.299 * patch[idxDown] + 0.587 * patch[idxDown + 1] + 0.114 * patch[idxDown + 2];
+      edgeEnergySum += Math.abs(lumRight - lum) + Math.abs(lumDown - lum);
+    }
+  }
+
+  const avgPatchLum = sampleCount ? (eyeR * 0.299 + eyeG * 0.587 + eyeB * 0.114) / sampleCount : 100;
+  const normalizedRings = ringLums.map((sum, i) => {
+    const rawRing = ringCounts[i] ? sum / ringCounts[i] : avgPatchLum;
+    return Number((rawRing / Math.max(25, avgPatchLum)).toFixed(3));
+  });
+
+  const pupilContrast = (avgPatchLum - minLum) / Math.max(35, avgPatchLum);
+  const textureDensity = edgeEnergySum / (sampleCount * 255);
+
+  return {
+    rings: normalizedRings,
+    pupilContrast: Number(Math.max(0, Math.min(1.0, pupilContrast)).toFixed(3)),
+    textureDensity: Number(Math.min(1.0, textureDensity * 4.5).toFixed(3)),
+    rgbRatio: [
+      Number((eyeR / (sampleCount * 255)).toFixed(3)),
+      Number((eyeG / (sampleCount * 255)).toFixed(3)),
+      Number((eyeB / (sampleCount * 255)).toFixed(3))
+    ],
+    lumHist: lumHist.map(h => Number((h / sampleCount).toFixed(3))),
+    loc: { eyeX: loc.eyeX, eyeY: loc.eyeY }
+  };
+}
+
+function calculateRetinalSimilarity(v1, v2) {
+  if (!v1 || !v2 || !v1.rings || !v2.rings) return 0;
+
+  // 1. Concentric Iris Rings Cosine Similarity (Weight 40%)
+  let dotR = 0, magR1 = 0, magR2 = 0;
+  for (let i = 0; i < v1.rings.length; i++) {
+    dotR += v1.rings[i] * v2.rings[i];
+    magR1 += v1.rings[i] * v1.rings[i];
+    magR2 += v2.rings[i] * v2.rings[i];
+  }
+  const ringsScore = (magR1 && magR2) ? (dotR / (Math.sqrt(magR1) * Math.sqrt(magR2))) : 0.4;
+
+  // 2. Texture Density & Pupil Contrast Score (Weight 25%)
+  const contrastDiff = Math.abs(v1.pupilContrast - v2.pupilContrast);
+  const textureDiff = Math.abs(v1.textureDensity - v2.textureDensity);
+  const structureScore = Math.max(0, 1 - (contrastDiff * 1.5 + textureDiff * 1.5));
+
+  // 3. RGB Tissue Chroma Score (Weight 15%)
+  const rDiff = Math.abs(v1.rgbRatio[0] - v2.rgbRatio[0]);
+  const gDiff = Math.abs(v1.rgbRatio[1] - v2.rgbRatio[1]);
+  const bDiff = Math.abs(v1.rgbRatio[2] - v2.rgbRatio[2]);
+  const chromaScore = Math.max(0, 1 - (rDiff + gDiff + bDiff) * 2.2);
+
+  // 4. Histogram Cosine Similarity (Weight 20%)
   let dotH = 0, magH1 = 0, magH2 = 0;
-  for (let i = 0; i < 16; i++) {
-    dotH += (vec1.ocularHist[i] || 0) * (vec2.ocularHist[i] || 0);
-    magH1 += Math.pow(vec1.ocularHist[i] || 0, 2);
-    magH2 += Math.pow(vec2.ocularHist[i] || 0, 2);
+  for (let i = 0; i < v1.lumHist.length; i++) {
+    dotH += v1.lumHist[i] * v2.lumHist[i];
+    magH1 += v1.lumHist[i] * v1.lumHist[i];
+    magH2 += v2.lumHist[i] * v2.lumHist[i];
   }
   const histScore = (magH1 && magH2) ? (dotH / (Math.sqrt(magH1) * Math.sqrt(magH2))) : 0.4;
 
-  return Math.min(1.0, (ringsScore * 0.40 + contrastScore * 0.20 + colorScore * 0.20 + histScore * 0.20));
+  return Math.min(1.0, (ringsScore * 0.40 + structureScore * 0.25 + chromaScore * 0.15 + histScore * 0.20));
 }
 
-// ---------------- RETINAL SCAN FLOW WITH DYNAMIC EYE ZOOM ----------------
+// ---------------- RETINAL SCAN WITH DYNAMIC OCULAR ZOOM ----------------
 async function startBiometricFaceScan(autoStart = false) {
   if (isScanningRetina || isBiometricVerified) return;
   isScanningRetina = true;
@@ -1331,13 +1433,9 @@ async function startBiometricFaceScan(autoStart = false) {
   const btn = document.getElementById("btn-start-face-scan");
 
   if (btn) btn.disabled = true;
-  if (viewfinder) {
-    viewfinder.classList.remove("verified", "denied");
-  }
-  if (videoEl) {
-    videoEl.classList.remove("ocular-zoomed");
-  }
-  if (readoutEl) readoutEl.textContent = "INITIALIZING OPTICAL & RETINAL SENSORS...";
+  if (viewfinder) viewfinder.classList.remove("verified", "denied");
+  if (videoEl) videoEl.classList.remove("ocular-zoomed");
+  if (readoutEl) readoutEl.textContent = "INITIALIZING OPTICAL SENSORS...";
 
   try {
     if (!gateCameraStream) {
@@ -1361,15 +1459,15 @@ async function startBiometricFaceScan(autoStart = false) {
   let progress = 0;
   const stages = [
     { at: 20, text: "[1/4] OPTICAL ACQUISITION: LOCATING EYE ZONE...", zoom: false },
-    { at: 45, text: "[2/4] DIGITAL OCULAR ZOOM: LOCKING ONTO RIGHT RETINA & PUPIL...", zoom: true },
-    { at: 70, text: "[3/4] IRIS PATTERN EXTRACTION: SCANNING CONCENTRIC MATRIX...", zoom: true },
-    { at: 90, text: "[4/4] OCULAR VASCULAR MATRIX: COMPARING AGAINST LIMFORD...", zoom: true }
+    { at: 45, text: "[2/4] DIGITAL OCULAR ZOOM: LOCKING RETINA & PUPIL...", zoom: true },
+    { at: 70, text: "[3/4] IRIS PATTERN EXTRACTION: CONCENTRIC MATRIX...", zoom: true },
+    { at: 90, text: "[4/4] COMPARING OCULAR PATTERN AGAINST LIMFORD...", zoom: true }
   ];
 
   const interval = setInterval(() => {
     progress += 5;
     if (fillEl) fillEl.style.width = `${progress}%`;
-    playBeep(750 + progress * 9, 0.035, "triangle");
+    playBeep(750 + progress * 8, 0.035, "triangle");
 
     const stage = stages.find(s => s.at === progress);
     if (stage) {
@@ -1384,13 +1482,29 @@ async function startBiometricFaceScan(autoStart = false) {
       isScanningRetina = false;
 
       const liveVec = extractRetinalFeatures(videoEl, canvasEl);
+
+      if (!liveVec) {
+        // No face/eye found in view
+        playBeep(180, 0.35, "sawtooth");
+        triggerHaptic(200);
+        if (viewfinder) viewfinder.classList.add("denied");
+        if (laserEl) laserEl.style.background = "#ef4444";
+        if (readoutEl) readoutEl.textContent = "❌ NO EYE DETECTED: ALIGN EYE IN CENTER RETICLE";
+        if (btn) btn.disabled = false;
+
+        setTimeout(() => {
+          if (videoEl) videoEl.classList.remove("ocular-zoomed");
+          if (viewfinder) viewfinder.classList.remove("denied");
+        }, 2200);
+        return;
+      }
+
       const enrolledVec = getEnrolledRetinalVector();
       const similarity = calculateRetinalSimilarity(liveVec, enrolledVec);
       const pct = Math.round(similarity * 100);
 
-      // Strict security threshold: minimum 74% match required!
-      if (similarity >= 0.74) {
-        // MATCH CONFIRMED
+      // Strict security threshold: minimum 70% match required
+      if (similarity >= 0.70) {
         playChime(660, 990);
         triggerHaptic([100, 50, 150]);
         if (viewfinder) viewfinder.classList.add("verified");
@@ -1407,8 +1521,8 @@ async function startBiometricFaceScan(autoStart = false) {
         }, 500);
 
       } else {
-        // ACCESS DENIED - MISMATCH
-        playBeep(180, 0.4, "sawtooth");
+        // Mismatch - access denied
+        playBeep(180, 0.45, "sawtooth");
         triggerHaptic(200);
         if (viewfinder) viewfinder.classList.add("denied");
         if (laserEl) laserEl.style.background = "#ef4444";
@@ -1421,10 +1535,10 @@ async function startBiometricFaceScan(autoStart = false) {
         }, 2200);
       }
     }
-  }, 90);
+  }, 85);
 }
 
-// ---------------- CALIBRATE LIMFORD'S RETINA ----------------
+// ---------------- INITIAL ENROLLMENT (ONE-TIME ONLY) ----------------
 function enrollLimfordRetina() {
   triggerHaptic(30);
   const videoEl = document.getElementById("gate-camera-feed");
@@ -1433,7 +1547,7 @@ function enrollLimfordRetina() {
 
   if (!gateCameraStream) {
     startBiometricFaceScan(false);
-    alert("Camera initializing. Please align your eye with the center reticle and tap Calibrate again in 2 seconds.");
+    alert("Camera initializing. Please center your eye in the viewfinder reticle and tap Enroll again in 2 seconds.");
     return;
   }
 
@@ -1441,20 +1555,83 @@ function enrollLimfordRetina() {
 
   setTimeout(() => {
     const vec = extractRetinalFeatures(videoEl, canvasEl);
-    if (vec && vec.pupilContrast > 0.05) {
+    if (vec && vec.rings && vec.rings.length === 6) {
       localStorage.setItem("leags_limford_retinal_vector", JSON.stringify(vec));
       playChime(660, 990);
       triggerHaptic([60, 40, 120]);
-      if (readoutEl) readoutEl.textContent = "✓ LIMFORD'S RETINAL PROFILE ENROLLED & CALIBRATED!";
-      alert("Retinal ocular biometrics successfully enrolled for Operator Limford!");
+      if (readoutEl) readoutEl.textContent = "✓ LIMFORD'S RETINAL PROFILE SAVED & LOCKED!";
+      checkInitialEnrollmentComplete();
+      alert("Retinal profile successfully calibrated for Limford!");
     } else {
-      alert("Unable to detect ocular patterns. Please center your eye in the viewfinder reticle and try again.");
+      alert("Unable to detect ocular iris pattern. Please position your face closer and center your eye in the reticle.");
     }
   }, 600);
 }
 
-// ---------------- ACOUSTIC FFT VOICEPRINT ENGINE ----------------
-async function captureAcousticFingerprint(durationMs = 2800) {
+// ---------------- ACOUSTIC FFT VOICEPRINT ENGINE (ZERO MIC CONFLICT) ----------------
+function startLiveWaveformFeedback(analyser) {
+  if (voiceAnimId) cancelAnimationFrame(voiceAnimId);
+  const bufferLength = analyser.frequencyBinCount;
+  const dataArray = new Uint8Array(bufferLength);
+  const step = Math.floor(bufferLength / 8);
+
+  function render() {
+    analyser.getByteFrequencyData(dataArray);
+    for (let i = 0; i < 8; i++) {
+      const bar = document.getElementById(`vbar-${i}`);
+      if (bar) {
+        let sum = 0;
+        for (let j = 0; j < step; j++) sum += dataArray[i * step + j];
+        const val = sum / step;
+        const h = Math.max(4, Math.round((val / 255) * 32));
+        bar.style.height = `${h}px`;
+        bar.style.background = (val > 130) ? '#10b981' : '#38bdf8';
+      }
+    }
+    voiceAnimId = requestAnimationFrame(render);
+  }
+  render();
+}
+
+function stopLiveWaveformFeedback() {
+  if (voiceAnimId) {
+    cancelAnimationFrame(voiceAnimId);
+    voiceAnimId = null;
+  }
+  for (let i = 0; i < 8; i++) {
+    const bar = document.getElementById(`vbar-${i}`);
+    if (bar) {
+      bar.style.height = "6px";
+      bar.style.background = "#38bdf8";
+    }
+  }
+}
+
+// Auto-correlation algorithm to detect fundamental vocal pitch (F0 in Hz)
+function detectFundamentalPitch(timeData, sampleRate) {
+  let bestR = 0;
+  let bestPeriod = -1;
+  const minPeriod = Math.floor(sampleRate / 350); // 350 Hz max human pitch
+  const maxPeriod = Math.floor(sampleRate / 75);  // 75 Hz min human pitch
+
+  for (let period = minPeriod; period <= maxPeriod; period++) {
+    let r = 0;
+    for (let i = 0; i < timeData.length - period; i++) {
+      r += (timeData[i] - 128) * (timeData[i + period] - 128);
+    }
+    if (r > bestR) {
+      bestR = r;
+      bestPeriod = period;
+    }
+  }
+
+  if (bestPeriod > 0 && bestR > 5000) {
+    return Math.round(sampleRate / bestPeriod);
+  }
+  return null;
+}
+
+async function captureAcousticFingerprint(durationMs = 3000) {
   return new Promise(async (resolve, reject) => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
@@ -1462,21 +1639,26 @@ async function captureAcousticFingerprint(durationMs = 2800) {
       const source = ctx.createMediaStreamSource(stream);
       const analyser = ctx.createAnalyser();
       analyser.fftSize = 512;
-      analyser.smoothingTimeConstant = 0.8;
+      analyser.smoothingTimeConstant = 0.75;
       source.connect(analyser);
 
+      startLiveWaveformFeedback(analyser);
+
       const bufferLength = analyser.frequencyBinCount;
-      const dataArray = new Uint8Array(bufferLength);
+      const freqData = new Uint8Array(bufferLength);
+      const timeData = new Uint8Array(analyser.fftSize);
       const sampleRate = ctx.sampleRate || 44100;
       const binWidth = sampleRate / analyser.fftSize;
 
       const bandAccumulators = new Array(8).fill(0);
       let centroidAccumulator = 0;
-      let totalFrames = 0;
+      let pitchSamples = [];
+      let totalVoicedFrames = 0;
 
       const startTime = Date.now();
       const interval = setInterval(() => {
-        analyser.getByteFrequencyData(dataArray);
+        analyser.getByteFrequencyData(freqData);
+        analyser.getByteTimeDomainData(timeData);
 
         let frameEnergy = 0;
         let weightedSum = 0;
@@ -1484,156 +1666,246 @@ async function captureAcousticFingerprint(durationMs = 2800) {
         const currentBands = new Array(8).fill(0);
 
         for (let i = 0; i < bufferLength; i++) {
-          const val = dataArray[i];
+          const val = freqData[i];
           const freq = i * binWidth;
           frameEnergy += val;
           weightedSum += freq * val;
           sum += val;
 
-          if (freq >= 80 && freq < 160) currentBands[0] += val;
-          else if (freq >= 160 && freq < 300) currentBands[1] += val;
-          else if (freq >= 300 && freq < 600) currentBands[2] += val;
-          else if (freq >= 600 && freq < 1200) currentBands[3] += val;
-          else if (freq >= 1200 && freq < 2400) currentBands[4] += val;
-          else if (freq >= 2400 && freq < 4000) currentBands[5] += val;
-          else if (freq >= 4000 && freq < 7000) currentBands[6] += val;
-          else if (freq >= 7000 && freq < 12000) currentBands[7] += val;
+          if (freq >= 80 && freq < 200) currentBands[0] += val;
+          else if (freq >= 200 && freq < 400) currentBands[1] += val;
+          else if (freq >= 400 && freq < 800) currentBands[2] += val;
+          else if (freq >= 800 && freq < 1600) currentBands[3] += val;
+          else if (freq >= 1600 && freq < 3000) currentBands[4] += val;
+          else if (freq >= 3000 && freq < 5000) currentBands[5] += val;
+          else if (freq >= 5000 && freq < 8000) currentBands[6] += val;
+          else if (freq >= 8000 && freq < 12000) currentBands[7] += val;
         }
 
-        if (frameEnergy > 150) {
+        if (frameEnergy > 160) {
           for (let b = 0; b < 8; b++) bandAccumulators[b] += currentBands[b];
           if (sum > 0) centroidAccumulator += (weightedSum / sum);
-          totalFrames++;
+          totalVoicedFrames++;
+
+          const pitch = detectFundamentalPitch(timeData, sampleRate);
+          if (pitch) pitchSamples.push(pitch);
         }
 
         if (Date.now() - startTime >= durationMs) {
           clearInterval(interval);
+          stopLiveWaveformFeedback();
           stream.getTracks().forEach(t => t.stop());
 
-          if (totalFrames === 0) {
+          if (totalVoicedFrames < 5) {
             resolve(null);
             return;
           }
 
           let maxVal = Math.max(...bandAccumulators, 1);
           const normalizedBands = bandAccumulators.map(v => Number((v / maxVal).toFixed(3)));
-          const meanCentroid = Math.round(centroidAccumulator / totalFrames);
+          const meanCentroid = Math.round(centroidAccumulator / totalVoicedFrames);
+
+          let meanPitch = 135;
+          if (pitchSamples.length > 0) {
+            meanPitch = Math.round(pitchSamples.reduce((a, b) => a + b, 0) / pitchSamples.length);
+          }
 
           resolve({
+            pitch: meanPitch,
             bands: normalizedBands,
             centroid: meanCentroid
           });
         }
-      }, 50);
+      }, 40);
     } catch (err) {
+      stopLiveWaveformFeedback();
       reject(err);
     }
   });
 }
 
 function calculateVoiceSimilarity(liveVec, enrolledVec) {
-  if (!liveVec || !enrolledVec) return 0;
+  if (!liveVec || !enrolledVec || !liveVec.bands || !enrolledVec.bands) return 0;
+
+  // 1. Pitch similarity (Weight 30%)
+  const pitchDiff = Math.abs(liveVec.pitch - enrolledVec.pitch);
+  const pitchScore = Math.max(0, 1 - (pitchDiff / 100));
+
+  // 2. Formant Frequency Bands Cosine Similarity (Weight 45%)
   let dot = 0, mag1 = 0, mag2 = 0;
   for (let i = 0; i < 8; i++) {
-    const v1 = liveVec.bands[i] || 0;
-    const v2 = enrolledVec.bands[i] || 0;
-    dot += v1 * v2;
-    mag1 += v1 * v1;
-    mag2 += v2 * v2;
+    dot += liveVec.bands[i] * enrolledVec.bands[i];
+    mag1 += liveVec.bands[i] * liveVec.bands[i];
+    mag2 += enrolledVec.bands[i] * enrolledVec.bands[i];
   }
   const bandScore = (mag1 > 0 && mag2 > 0) ? (dot / (Math.sqrt(mag1) * Math.sqrt(mag2))) : 0;
-  const centroidDiff = Math.abs(liveVec.centroid - enrolledVec.centroid);
-  const centroidScore = Math.max(0, 1 - (centroidDiff / 600));
 
-  return Math.min(1.0, bandScore * 0.70 + centroidScore * 0.30);
+  // 3. Spectral Centroid distance (Weight 25%)
+  const centroidDiff = Math.abs(liveVec.centroid - enrolledVec.centroid);
+  const centroidScore = Math.max(0, 1 - (centroidDiff / 500));
+
+  return Math.min(1.0, pitchScore * 0.30 + bandScore * 0.45 + centroidScore * 0.25);
 }
 
-// ---------------- CALIBRATE LIMFORD'S VOICEPRINT ----------------
+// ---------------- INITIAL ENROLLMENT: VOICEPRINT ----------------
 async function enrollLimfordVoiceprint() {
   triggerHaptic(25);
   const readout = document.getElementById("gate-voice-readout");
-  const waveform = document.getElementById("gate-waveform");
-
-  if (waveform) waveform.classList.add("active");
-  if (readout) readout.textContent = "CALIBRATING... SPEAK NOW: 'I AM LIMFORD, AUTHORIZE LEAGS.'";
+  if (readout) readout.textContent = "LISTENING... SPEAK NOW: 'I AM LIMFORD, AUTHORIZE LEAGS.'";
   playBeep(660, 0.15, "sine");
 
   try {
     const acousticVec = await captureAcousticFingerprint(3200);
-    if (waveform) waveform.classList.remove("active");
 
     if (acousticVec) {
       localStorage.setItem("leags_limford_voiceprint_vector", JSON.stringify(acousticVec));
       playChime(660, 990);
       triggerHaptic([60, 40, 120]);
-      if (readout) readout.textContent = "✓ LIMFORD'S ACOUSTIC VOICEPRINT ENROLLED & CALIBRATED!";
-      alert("Voiceprint biometrics successfully enrolled for Operator Limford!");
+      if (readout) readout.textContent = "✓ LIMFORD'S VOICEPRINT PROFILE ENROLLED & LOCKED!";
+      checkInitialEnrollmentComplete();
+      alert("Acoustic voiceprint successfully enrolled for Limford!");
     } else {
-      if (readout) readout.textContent = "NO AUDIO DETECTED. TRY AGAIN.";
-      alert("No audio detected. Please speak louder into your microphone and try again.");
+      if (readout) readout.textContent = "NO SPEECH DETECTED. PLEASE SPEAK CLEARLY INTO MIC.";
+      alert("No speech detected. Please speak clearly into your microphone and try again.");
     }
   } catch (err) {
-    if (waveform) waveform.classList.remove("active");
-    if (readout) readout.textContent = "MICROPHONE ERROR: PERMISSION DENIED";
+    if (readout) readout.textContent = "MICROPHONE PERMISSION DENIED";
     alert("Microphone permission was denied.");
+  }
+}
+
+function checkInitialEnrollmentComplete() {
+  const hasRetina = localStorage.getItem("leags_limford_retinal_vector") !== null;
+  const hasVoice = localStorage.getItem("leags_limford_voiceprint_vector") !== null;
+  if (hasRetina && hasVoice) {
+    localStorage.setItem("leags_biometrics_enrolled", "true");
+    updateLockScreenEnrollmentVisibility();
+    playChime(700, 980);
+    speakOutLoud("Initial biometric setup complete. Operator Limford's profile is now secured and locked.");
   }
 }
 
 // ---------------- VERIFY VOICEPRINT BIOMETRICS ----------------
 async function startGateVoiceVerify() {
   triggerHaptic(20);
-  const waveform = document.getElementById("gate-waveform");
   const readout = document.getElementById("gate-voice-readout");
   const btn = document.getElementById("btn-start-voice-scan");
 
   if (btn) btn.disabled = true;
-  if (waveform) waveform.classList.add("active");
   if (readout) readout.textContent = "LISTENING... SAY: 'I AM LIMFORD, AUTHORIZE LEAGS'";
   playBeep(600, 0.1, "sine");
 
-  let recognizedText = "";
-  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-  let recInstance = null;
-
-  if (SpeechRec) {
-    recInstance = new SpeechRec();
-    recInstance.continuous = false;
-    recInstance.interimResults = false;
-    recInstance.lang = "en-US";
-    recInstance.onresult = (e) => {
-      recognizedText = e.results[0][0].transcript.toLowerCase();
-    };
-    try { recInstance.start(); } catch(e) {}
-  }
-
   try {
-    const liveAcousticVec = await captureAcousticFingerprint(3200);
-    if (waveform) waveform.classList.remove("active");
+    const liveAcousticVec = await captureAcousticFingerprint(3000);
     if (btn) btn.disabled = false;
+
+    if (!liveAcousticVec) {
+      if (readout) readout.textContent = "❌ NO AUDIO DETECTED: SPEAK CLEARLY INTO MIC";
+      playBeep(220, 0.35, "sawtooth");
+      triggerHaptic(200);
+      return;
+    }
 
     const enrolledVoiceVec = getEnrolledVoiceVector();
     const similarity = calculateVoiceSimilarity(liveAcousticVec, enrolledVoiceVec);
     const pct = Math.round(similarity * 100);
 
-    const hasPassphrase = recognizedText.includes("limford") && (recognizedText.includes("leags") || recognizedText.includes("authorize"));
-
-    if (hasPassphrase && similarity >= 0.74) {
+    // Strict threshold: minimum 70% match required
+    if (similarity >= 0.70) {
       if (readout) readout.textContent = `✓ VOICEPRINT CONFIRMED: LIMFORD (${pct}% MATCH) // CLEARANCE GRANTED`;
-      playChime(700, 980);
-      triggerHaptic([60, 40, 100]);
+      playChime(660, 990);
+      triggerHaptic([100, 50, 150]);
       setTimeout(() => completeAuthorization(`Acoustic Voiceprint (${pct}% Match)`), 400);
-    } else if (!hasPassphrase) {
-      if (readout) readout.textContent = `❌ PASSPHRASE REJECTED: "${recognizedText || 'NO SPEECH'}"`;
-      playBeep(220, 0.35, "sawtooth");
     } else {
       if (readout) readout.textContent = `❌ VOICEPRINT MISMATCH (${pct}% MATCH): ACOUSTIC TIMBRE REJECTED // ACCESS DENIED`;
-      playBeep(200, 0.4, "sawtooth");
+      playBeep(180, 0.45, "sawtooth");
+      triggerHaptic(200);
     }
   } catch (err) {
-    if (waveform) waveform.classList.remove("active");
     if (btn) btn.disabled = false;
     if (readout) readout.textContent = "MICROPHONE SENSOR ERROR: PLEASE RETRY";
   }
+}
+
+// ---------------- AUTHENTICATED SECURITY HUB (ONLY WHEN UNLOCKED!) ----------------
+function openSecurityHub() {
+  if (!isBiometricVerified) return; // Cannot be opened if locked!
+  const modal = document.getElementById("authenticated-security-hub-modal");
+  const rStatus = document.getElementById("vault-retina-status");
+  const vStatus = document.getElementById("vault-voice-status");
+
+  const hasRetina = localStorage.getItem("leags_limford_retinal_vector") !== null;
+  const hasVoice = localStorage.getItem("leags_limford_voiceprint_vector") !== null;
+
+  if (rStatus) rStatus.textContent = hasRetina ? "✓ ENROLLED & SECURED" : "PENDING";
+  if (vStatus) vStatus.textContent = hasVoice ? "✓ ENROLLED & SECURED" : "PENDING";
+
+  if (modal) modal.style.display = "flex";
+}
+
+function closeSecurityHub() {
+  const modal = document.getElementById("authenticated-security-hub-modal");
+  if (modal) modal.style.display = "none";
+}
+
+async function recalibrateRetinaFromVault() {
+  if (!isBiometricVerified) return;
+  closeSecurityHub();
+
+  const videoEl = document.getElementById("gate-camera-feed");
+  const canvasEl = document.getElementById("gate-canvas");
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
+      audio: false
+    });
+    if (videoEl) videoEl.srcObject = stream;
+    if (videoEl) videoEl.classList.add("ocular-zoomed");
+
+    alert("Look directly into the camera. We are capturing your new retinal profile now.");
+
+    setTimeout(() => {
+      const vec = extractRetinalFeatures(videoEl, canvasEl);
+      stream.getTracks().forEach(t => t.stop());
+      if (videoEl) videoEl.classList.remove("ocular-zoomed");
+
+      if (vec && vec.rings && vec.rings.length === 6) {
+        localStorage.setItem("leags_limford_retinal_vector", JSON.stringify(vec));
+        localStorage.setItem("leags_biometrics_enrolled", "true");
+        playChime(660, 990);
+        speakOutLoud("Retinal profile successfully updated and secured.");
+        alert("✓ Limford's Retinal Biometrics successfully updated!");
+      } else {
+        alert("Unable to detect ocular features. Please ensure your face is well-lit and retry.");
+      }
+      openSecurityHub();
+    }, 1200);
+  } catch (e) {
+    alert("Camera error: " + e.message);
+  }
+}
+
+async function recalibrateVoiceFromVault() {
+  if (!isBiometricVerified) return;
+  closeSecurityHub();
+
+  alert("Speak clearly when ready: 'I am Limford, authorize Leags.'");
+  try {
+    const acousticVec = await captureAcousticFingerprint(3200);
+    if (acousticVec) {
+      localStorage.setItem("leags_limford_voiceprint_vector", JSON.stringify(acousticVec));
+      localStorage.setItem("leags_biometrics_enrolled", "true");
+      playChime(660, 990);
+      speakOutLoud("Voiceprint profile successfully updated and secured.");
+      alert("✓ Limford's Voiceprint successfully updated!");
+    } else {
+      alert("No audio detected. Please speak louder into your microphone.");
+    }
+  } catch (e) {
+    alert("Microphone error: " + e.message);
+  }
+  openSecurityHub();
 }
 
 // ---------------- GATE VISIBILITY & MODE CONTROL ----------------
@@ -1661,6 +1933,8 @@ function initSecurityGate() {
   const gateEl = document.getElementById("mandatory-security-gate");
   const headerBadge = document.getElementById("header-bio-badge");
   const headerText = document.getElementById("header-bio-text");
+
+  updateLockScreenEnrollmentVisibility();
 
   if (isBiometricVerified) {
     if (gateEl) gateEl.classList.add("unlocked");
@@ -1711,7 +1985,6 @@ function lockSystemManually() {
   publishAuthEvent("AUTH_LOCKED", "Samsung Galaxy A52");
 }
 
-
 function handleAuthEvent(payload) {
   if (payload.type === "AUTH_VERIFIED") {
     if (!isBiometricVerified) {
@@ -1741,4 +2014,3 @@ if (geminiKey) {
 // Initialize Biometric Security Gate and Cloud Mesh
 initSecurityGate();
 connectMesh();
-

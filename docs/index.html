@@ -1342,6 +1342,47 @@
       border-color: rgba(16, 185, 129, 0.4) !important;
       color: #34d399 !important;
     }
+
+    /* Authenticated Biometric Security Vault Modal */
+    .sec-hub-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(2, 6, 23, 0.85);
+      backdrop-filter: blur(14px);
+      z-index: 9998;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .sec-hub-overlay.active {
+      display: flex;
+    }
+    .sec-hub-card {
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid rgba(99, 102, 241, 0.4);
+      box-shadow: 0 0 50px rgba(99, 102, 241, 0.3);
+      border-radius: 20px;
+      padding: 24px;
+      max-width: 440px;
+      width: 100%;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .sec-status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      color: #34d399;
+      padding: 4px 10px;
+      border-radius: 8px;
+      font-size: 0.72rem;
+      font-weight: 700;
+    }
   </style>
 </head>
 <body>
@@ -1406,13 +1447,16 @@
 
         <div class="bio-gate-actions" style="width: 100%; display: flex; flex-direction: column; gap: 8px;">
           <button class="btn-bio-verify" id="btn-start-face-scan" onclick="startBiometricFaceScan(false)">
-            ⚡ RE-SCAN RETINA & OCULAR PROFILE
+            ⚡ VERIFY RETINAL & OCULAR PROFILE
           </button>
-          <button type="button" class="btn-bio-enroll" onclick="enrollLimfordRetina()" style="background: rgba(6, 182, 212, 0.12); border: 1px solid rgba(6,182,212,0.4); color: #67e8f9; font-size: 0.76rem; font-weight: 700; padding: 8px 12px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
-            👁️ Calibrate Limford's Retinal Biometrics
-          </button>
+          <!-- One-time Initial Setup only: completely hidden once enrolled so no stranger can reset! -->
+          <div id="retinal-enroll-container" style="display: none; width: 100%;">
+            <button type="button" class="btn-bio-enroll" onclick="enrollLimfordRetina()" style="width: 100%; background: rgba(6, 182, 212, 0.15); border: 1px solid rgba(6,182,212,0.4); color: #67e8f9; font-size: 0.76rem; font-weight: 700; padding: 8px 12px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+              👁️ Initial Setup: Enroll Limford's Retina
+            </button>
+          </div>
         </div>
-        <canvas id="gate-canvas" width="160" height="120" style="display: none;"></canvas>
+        <canvas id="gate-canvas" width="320" height="240" style="display: none;"></canvas>
       </div>
 
       <!-- Mode 2: Acoustic Voiceprint Biometrics View -->
@@ -1420,9 +1464,10 @@
         <div class="voice-waveform-container">
           <div class="voice-mic-glow" id="gate-mic-icon" onclick="startGateVoiceVerify()">🎙️</div>
           <div class="waveform-bars" id="gate-waveform">
-            <span class="bar"></span><span class="bar"></span><span class="bar"></span>
-            <span class="bar"></span><span class="bar"></span><span class="bar"></span>
-            <span class="bar"></span><span class="bar"></span><span class="bar"></span>
+            <span class="bar" id="vbar-0"></span><span class="bar" id="vbar-1"></span>
+            <span class="bar" id="vbar-2"></span><span class="bar" id="vbar-3"></span>
+            <span class="bar" id="vbar-4"></span><span class="bar" id="vbar-5"></span>
+            <span class="bar" id="vbar-6"></span><span class="bar" id="vbar-7"></span>
           </div>
         </div>
         <p class="voice-prompt-text">
@@ -1434,9 +1479,12 @@
           <button class="btn-bio-verify" id="btn-start-voice-scan" onclick="startGateVoiceVerify()">
             🎙️ EXAMINE VOICE FREQUENCIES
           </button>
-          <button type="button" class="btn-bio-enroll" onclick="enrollLimfordVoiceprint()" style="background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16,185,129,0.4); color: #6ee7b7; font-size: 0.76rem; font-weight: 700; padding: 8px 12px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
-            🎙️ Calibrate Limford's Voiceprint
-          </button>
+          <!-- One-time Initial Setup only: completely hidden once enrolled so no stranger can reset! -->
+          <div id="voice-enroll-container" style="display: none; width: 100%;">
+            <button type="button" class="btn-bio-enroll" onclick="enrollLimfordVoiceprint()" style="width: 100%; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16,185,129,0.4); color: #6ee7b7; font-size: 0.76rem; font-weight: 700; padding: 8px 12px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+              🎙️ Initial Setup: Enroll Limford's Voiceprint
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1444,6 +1492,50 @@
       <div class="bio-sync-status">
         <span>🔄</span>
         <span>Cross-device clearance: Unlocking on Phone unlocks PC, and vice-versa.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- AUTHENTICATED BIOMETRIC SECURITY VAULT (ACCESSIBLE ONLY WHEN UNLOCKED!) -->
+  <div id="authenticated-security-hub-modal" class="sec-hub-overlay" style="display: none;">
+    <div class="sec-hub-card">
+      <div style="display: flex; align-items: center; justify-content: space-between;">
+        <h3 style="margin: 0; font-size: 1.1rem; color: #f8fafc; display: flex; align-items: center; gap: 8px;">
+          <span>🛡️</span> Biometric Security Vault
+        </h3>
+        <button onclick="closeSecurityHub()" style="background: transparent; border: none; color: #94a3b8; font-size: 1.2rem; cursor: pointer;">✕</button>
+      </div>
+      <p style="font-size: 0.76rem; color: #94a3b8; margin: 0; text-align: left;">
+        Operator Profile: <strong style="color: #67e8f9;">Limford</strong>. Biometrics are cryptographically locked against unauthorized reset.
+      </p>
+
+      <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 10px; text-align: left;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 0.8rem; color: #cbd5e1;">👁️ Retinal Matrix</span>
+          <span id="vault-retina-status" class="sec-status-badge">ENROLLED</span>
+        </div>
+        <button onclick="recalibrateRetinaFromVault()" style="background: rgba(6, 182, 212, 0.2); border: 1px solid rgba(6, 182, 212, 0.4); color: #67e8f9; font-size: 0.76rem; font-weight: 700; padding: 8px 12px; border-radius: 8px; cursor: pointer;">
+          👁️ Retake Retinal Biometrics
+        </button>
+
+        <div style="height: 1px; background: rgba(255,255,255,0.06); margin: 4px 0;"></div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 0.8rem; color: #cbd5e1;">🎙️ Voiceprint Acoustic</span>
+          <span id="vault-voice-status" class="sec-status-badge">ENROLLED</span>
+        </div>
+        <button onclick="recalibrateVoiceFromVault()" style="background: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.4); color: #6ee7b7; font-size: 0.76rem; font-weight: 700; padding: 8px 12px; border-radius: 8px; cursor: pointer;">
+          🎙️ Retake Voiceprint Biometrics
+        </button>
+      </div>
+
+      <div style="display: flex; gap: 8px;">
+        <button onclick="lockSystemManually(); closeSecurityHub();" style="flex: 1; background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.4); color: #f87171; font-size: 0.78rem; font-weight: 700; padding: 10px; border-radius: 10px; cursor: pointer;">
+          🔒 Lock Device Now
+        </button>
+        <button onclick="closeSecurityHub()" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: #cbd5e1; font-size: 0.78rem; padding: 10px 16px; border-radius: 10px; cursor: pointer;">
+          Close
+        </button>
       </div>
     </div>
   </div>
@@ -1465,6 +1557,9 @@
       <div class="status-pill bio-pill" id="header-bio-badge" onclick="lockSystemManually()" title="Click to lock system">
         <span id="header-bio-icon">🛡️</span>
         <span id="header-bio-text">Limford (Auth)</span>
+      </div>
+      <div class="status-pill" id="btn-vault" onclick="openSecurityHub()" style="cursor: pointer; background: rgba(99, 102, 241, 0.2); border: 1px solid rgba(99, 102, 241, 0.4); color: #a5b4fc; font-weight: 700;" title="Manage Enrolled Biometrics">
+        <span>🛡️ Vault</span>
       </div>
       <span class="badge-phone" id="phone-battery-badge">📱 Galaxy</span>
       <div class="status-pill" id="pc-status-pill">
@@ -1779,15 +1874,15 @@
       <div class="card">
         <div class="card-header">
           <h3>Biometric Security &amp; Access</h3>
-          <span class="badge-tag" id="bio-lock-badge">🛡️ Auth: Unverified</span>
+          <span class="badge-tag" id="bio-lock-badge">🛡️ Auth: Verified</span>
         </div>
-        <p class="card-desc">Lock and protect Leags master controls using retinal/facial scanning and personalized voiceprint calibration:</p>
+        <p class="card-desc">Operator Profile: <strong>Limford</strong>. Biometrics are cryptographically locked against unauthorized reset:</p>
         <div class="button-grid grid-2" style="margin-top: 4px;">
-          <button class="action-btn btn-cyan" onclick="openBiometricScanner()">
-            <span>👁️ Retinal / Face Scan</span>
+          <button class="action-btn btn-cyan" onclick="openSecurityHub()">
+            <span>🛡️ Biometric Security Vault</span>
           </button>
-          <button class="action-btn" onclick="openVoiceCalibration()">
-            <span>🎙️ Calibrate Voice Signature</span>
+          <button class="action-btn" onclick="lockSystemManually()">
+            <span>🔒 Lock Device Now</span>
           </button>
         </div>
       </div>
