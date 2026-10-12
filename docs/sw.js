@@ -1,5 +1,5 @@
-// Leags PWA Service Worker - v8 (Strict Lockscreen Protection & Interactive Functions Fix)
-const CACHE_NAME = 'leags-cache-v8';
+// Leags PWA Service Worker - v9 (Enhanced Face ID Gaussian Matching & Enrollment Auto-Recovery)
+const CACHE_NAME = 'leags-cache-v9';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
