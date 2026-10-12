@@ -398,8 +398,43 @@ function confirmAction(action, promptText) {
 }
 
 // Local Phone Actions (When commanded by PC or user)
+let realTorchTrack = null;
+async function toggleRealOrScreenTorch() {
+  if (realTorchTrack) {
+    try {
+      await realTorchTrack.applyConstraints({ advanced: [{ torch: false }] });
+      realTorchTrack.stop();
+    } catch(e) {}
+    realTorchTrack = null;
+    toggleScreenTorch(false);
+    showToast("💡 Torch Off");
+    return;
+  }
+
+  // Attempt real camera flash LED torch
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "environment" }
+    });
+    const track = stream.getVideoTracks()[0];
+    const capabilities = (track.getCapabilities && track.getCapabilities()) || {};
+    if (capabilities.torch) {
+      await track.applyConstraints({ advanced: [{ torch: true }] });
+      realTorchTrack = track;
+      showToast("💡 Camera Flashlight ON!");
+      speakOutLoud("Torch on.");
+      return;
+    } else {
+      track.stop();
+      toggleScreenTorch(true);
+    }
+  } catch(e) {
+    toggleScreenTorch(true);
+  }
+}
+
 function executePhoneActionLocally(action, params = {}) {
-  triggerHaptic(30);
+  triggerHaptic([40, 25, 40]);
   playChime(660, 880);
 
   if (action === "hotspot" || action === "phone_hotspot") {
@@ -408,26 +443,51 @@ function executePhoneActionLocally(action, params = {}) {
     appendChatMessage("assistant", "📶 <strong>Mobile Hotspot</strong>: Launching Tethering & Portable Hotspot settings on your Samsung Galaxy A52.");
     speakOutLoud("Opening Mobile Hotspot settings on your phone.");
     
-    // Android Tethering Intent & fallback prompt
-    setTimeout(() => {
+    // Direct intent trigger without async timeout delay to preserve user activation
+    try {
+      const a = document.createElement("a");
+      a.href = "intent:#Intent;action=android.settings.TETHER_SETTINGS;end";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch (e) {
       window.location.href = "intent:#Intent;action=android.settings.TETHER_SETTINGS;end";
-    }, 500);
+    }
   } else if (action === "phone_camera") {
-    showToast("📷 Opening Camera...");
-    window.location.href = "intent:#Intent;action=android.media.action.IMAGE_CAPTURE;end";
+    showToast("📷 Opening Native Camera...");
     speakOutLoud("Opening Camera.");
+    // HTML5 camera capture opens native Samsung Camera app instantly without browser block
+    const camInput = document.createElement("input");
+    camInput.type = "file";
+    camInput.accept = "image/*";
+    camInput.capture = "environment";
+    camInput.style.display = "none";
+    document.body.appendChild(camInput);
+    camInput.onchange = (e) => {
+      if (e.target.files && e.target.files.length > 0) {
+        showToast("📷 Photo captured successfully!");
+      }
+      camInput.remove();
+    };
+    camInput.click();
   } else if (action === "phone_whatsapp") {
     showToast("💬 Opening WhatsApp...");
-    window.location.href = "whatsapp://";
     speakOutLoud("Opening WhatsApp.");
+    const waWin = window.open("https://wa.me/", "_blank");
+    if (!waWin || waWin.closed || typeof waWin.closed === "undefined") {
+      window.location.href = "whatsapp://send";
+    }
   } else if (action === "ring_phone") {
     triggerPhoneAlarmSiren();
   } else if (action === "phone_vibrate") {
-    triggerHaptic([300, 150, 300, 150, 600]);
+    if (navigator.vibrate) {
+      try { navigator.vibrate([300, 150, 300, 150, 600]); } catch(e) {}
+    }
+    playBeep(660, 0.25);
     showToast("📳 Phone vibration triggered");
     speakOutLoud("Vibrating phone.");
   } else if (action === "phone_torch") {
-    toggleScreenTorch();
+    toggleRealOrScreenTorch();
   } else if (action === "phone_timer") {
     startTimer(params.seconds || 300, params.label || "5 mins");
   } else if (action === "phone_tts") {
@@ -463,8 +523,8 @@ function stopPhoneAlarmSiren() {
 
 // Screen Torch (Max Brightness White Screen)
 let isTorchOn = false;
-function toggleScreenTorch() {
-  isTorchOn = !isTorchOn;
+function toggleScreenTorch(forceState = null) {
+  isTorchOn = (forceState !== null) ? forceState : !isTorchOn;
   const overlay = document.getElementById("torch-overlay");
   if (overlay) {
     overlay.style.display = isTorchOn ? "block" : "none";
@@ -1455,22 +1515,37 @@ function isBiometricsEnrolled() {
   const hasFace = localStorage.getItem("leags_limford_facial_vector") !== null;
   const hasVoice = localStorage.getItem("leags_limford_voiceprint_vector") !== null;
   const flag = localStorage.getItem("leags_faceid_enrolled") === "true";
-  return flag || (hasFace && hasVoice);
+  return flag || hasFace || hasVoice;
 }
 
 function updateLockScreenEnrollmentVisibility() {
   const statusPill = document.getElementById("gate-enrollment-status-pill");
-  const hasFace = localStorage.getItem("leags_limford_facial_vector") !== null;
-  const hasVoice = localStorage.getItem("leags_limford_voiceprint_vector") !== null;
+  const faceEnrollBox = document.getElementById("lock-screen-first-time-enroll-face");
+  const voiceEnrollBox = document.getElementById("lock-screen-first-time-enroll-voice");
+  const enrolled = isBiometricsEnrolled();
 
-  if (statusPill) {
-    statusPill.style.display = "inline-flex";
-    if (hasFace || hasVoice) {
+  if (enrolled) {
+    // STRICT LOCKSCREEN SECURITY:
+    // Once enrolled, NO ONE can reset or update biometrics from the lock screen.
+    // The enrollment buttons are completely hidden on the lock screen.
+    // Biometrics can ONLY be updated when UNLOCKED from within the authenticated Vault.
+    if (faceEnrollBox) faceEnrollBox.style.display = "none";
+    if (voiceEnrollBox) voiceEnrollBox.style.display = "none";
+
+    if (statusPill) {
+      statusPill.style.display = "inline-flex";
       statusPill.style.background = "rgba(16, 185, 129, 0.15)";
       statusPill.style.border = "1px solid rgba(16, 185, 129, 0.35)";
       statusPill.style.color = "#34d399";
       statusPill.innerHTML = `<span>🛡️</span> <span>Limford ID: <strong>Calibrated & Locked</strong></span>`;
-    } else {
+    }
+  } else {
+    // FIRST-TIME ENROLLMENT ONLY (When never enrolled before)
+    if (faceEnrollBox) faceEnrollBox.style.display = "block";
+    if (voiceEnrollBox) voiceEnrollBox.style.display = "block";
+
+    if (statusPill) {
+      statusPill.style.display = "inline-flex";
       statusPill.style.background = "rgba(245, 158, 11, 0.15)";
       statusPill.style.border = "1px solid rgba(245, 158, 11, 0.4)";
       statusPill.style.color = "#fbbf24";
@@ -2443,6 +2518,14 @@ let isWizardScanning = false;
 
 function openEnrollmentWizard(tab = "face") {
   triggerHaptic(20);
+
+  // STRICT LOCKSCREEN SECURITY: If already enrolled, forbid opening wizard while locked
+  if (!isBiometricVerified && isBiometricsEnrolled()) {
+    showToast("🔒 Locked: Identity can only be updated from Vault when unlocked!", false);
+    speakOutLoud("Access denied. Identity can only be updated when unlocked.");
+    return;
+  }
+
   // Free camera from background lock scan if running
   if (gateCameraStream) {
     try {
@@ -2682,7 +2765,12 @@ function initSecurityGate() {
   updateLockScreenEnrollmentVisibility();
 
   if (isBiometricVerified) {
-    if (gateEl) gateEl.classList.add("unlocked");
+    if (gateEl) {
+      gateEl.classList.add("unlocked");
+      gateEl.style.display = "none";
+      gateEl.style.visibility = "hidden";
+      gateEl.style.pointerEvents = "none";
+    }
     if (headerBadge) headerBadge.classList.remove("locked");
     if (headerText) headerText.textContent = "Limford (Auth)";
 
@@ -2693,7 +2781,12 @@ function initSecurityGate() {
       gateCameraStream = null;
     }
   } else {
-    if (gateEl) gateEl.classList.remove("unlocked");
+    if (gateEl) {
+      gateEl.classList.remove("unlocked");
+      gateEl.style.display = "flex";
+      gateEl.style.visibility = "visible";
+      gateEl.style.pointerEvents = "auto";
+    }
     if (headerBadge) headerBadge.classList.add("locked");
     if (headerText) headerText.textContent = "Locked";
 

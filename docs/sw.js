@@ -1,5 +1,5 @@
-// Leags PWA Service Worker - v7 (First-Time Enrollment & ID Update Wizard)
-const CACHE_NAME = 'leags-cache-v7';
+// Leags PWA Service Worker - v8 (Strict Lockscreen Protection & Interactive Functions Fix)
+const CACHE_NAME = 'leags-cache-v8';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
