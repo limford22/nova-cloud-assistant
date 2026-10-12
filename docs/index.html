@@ -1409,6 +1409,7 @@
           <span>OPERATOR: <strong>LIMFORD</strong></span>
           <span class="clearance-level">LEVEL 1 ALPHA</span>
         </div>
+        <div id="gate-enrollment-status-pill" style="font-size: 0.72rem; padding: 4px 10px; border-radius: 12px; margin-top: 6px; display: inline-flex; align-items: center; gap: 6px;"></div>
       </div>
 
       <!-- Mode Selector Tabs (Strict Biometrics Only - No PIN) -->
@@ -1447,7 +1448,7 @@
 
         <div class="voice-activation-pill" id="gate-voice-active-indicator" onclick="triggerVoiceActivationPrompt()">
           <span class="pulse-dot"></span>
-          <span>🎙️ Voice Active: Say <strong>"Leags, unlock"</strong> or <strong>"Face ID"</strong></span>
+          <span>🎙️ Voice Active: Say <strong>"Wake up"</strong> or <strong>"Face ID"</strong></span>
         </div>
 
         <div class="bio-progress-container">
@@ -1461,12 +1462,9 @@
           <button class="btn-bio-verify" id="btn-start-face-scan" onclick="startBiometricFaceScan(false)">
             ⚡ VERIFY FACE ID (VOICE-ACTIVATED)
           </button>
-          <!-- One-time Initial Setup only: completely hidden once enrolled so no stranger can reset! -->
-          <div id="facial-enroll-container" style="display: none; width: 100%;">
-            <button type="button" class="btn-bio-enroll" onclick="enrollLimfordFace()" style="width: 100%; background: rgba(6, 182, 212, 0.15); border: 1px solid rgba(6,182,212,0.4); color: #67e8f9; font-size: 0.76rem; font-weight: 700; padding: 8px 12px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
-              👤 Initial Setup: Enroll Limford's Face ID
-            </button>
-          </div>
+          <button type="button" class="btn-bio-enroll" onclick="openEnrollmentWizard('face')" style="width: 100%; background: linear-gradient(135deg, rgba(6, 182, 212, 0.22), rgba(99, 102, 241, 0.22)); border: 1px solid rgba(6, 182, 212, 0.45); color: #67e8f9; font-size: 0.78rem; font-weight: 700; padding: 10px 12px; border-radius: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 2px 10px rgba(6,182,212,0.15);">
+            ✨ First-Time Enrollment / Update Face ID
+          </button>
         </div>
         <canvas id="gate-canvas" width="320" height="240" style="display: none;"></canvas>
       </div>
@@ -1491,19 +1489,109 @@
           <button class="btn-bio-verify" id="btn-start-voice-scan" onclick="startGateVoiceVerify()">
             🎙️ EXAMINE VOICE FREQUENCIES
           </button>
-          <!-- One-time Initial Setup only: completely hidden once enrolled so no stranger can reset! -->
-          <div id="voice-enroll-container" style="display: none; width: 100%;">
-            <button type="button" class="btn-bio-enroll" onclick="enrollLimfordVoiceprint()" style="width: 100%; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16,185,129,0.4); color: #6ee7b7; font-size: 0.76rem; font-weight: 700; padding: 8px 12px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
-              🎙️ Initial Setup: Enroll Limford's Voiceprint
-            </button>
-          </div>
+          <button type="button" class="btn-bio-enroll" onclick="openEnrollmentWizard('voice')" style="width: 100%; background: linear-gradient(135deg, rgba(16, 185, 129, 0.22), rgba(6, 182, 212, 0.22)); border: 1px solid rgba(16, 185, 129, 0.45); color: #6ee7b7; font-size: 0.78rem; font-weight: 700; padding: 10px 12px; border-radius: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 2px 10px rgba(16,185,129,0.15);">
+            ✨ First-Time Enrollment / Update Voiceprint
+          </button>
         </div>
       </div>
-
 
       <div class="bio-sync-status">
         <span>🔄</span>
         <span>Cross-device clearance: Unlocking on Phone unlocks PC, and vice-versa.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- FIRST-TIME BIOMETRIC ENROLLMENT & ID UPDATE WIZARD MODAL -->
+  <div id="biometric-enrollment-wizard-modal" class="sec-hub-overlay" style="display: none; z-index: 10005;">
+    <div class="sec-hub-card" style="max-width: 440px; padding: 20px;">
+      <div style="display: flex; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 1.3rem;">🛡️</span>
+          <div style="text-align: left;">
+            <h3 style="margin: 0; font-size: 1.05rem; color: #f8fafc; font-weight: 800;">BIOMETRIC IDENTITY SETUP</h3>
+            <p style="margin: 0; font-size: 0.70rem; color: #94a3b8;">Operator: <strong style="color: #67e8f9;">Limford</strong> // Level 1 Alpha</p>
+          </div>
+        </div>
+        <button onclick="closeEnrollmentWizard()" style="background: transparent; border: none; color: #94a3b8; font-size: 1.3rem; cursor: pointer; padding: 4px;">✕</button>
+      </div>
+
+      <!-- Notice Banner -->
+      <div style="background: rgba(6, 182, 212, 0.12); border: 1px solid rgba(6, 182, 212, 0.35); border-radius: 12px; padding: 10px; text-align: left; font-size: 0.76rem; color: #e2e8f0; line-height: 1.4;">
+        <span>ℹ️ Calibrate your Face ID or Voiceprint to lock your profile. Once calibrated, only your biometrics will grant access.</span>
+      </div>
+
+      <!-- Wizard Mode Navigation -->
+      <div class="bio-mode-tabs" style="margin-bottom: 0;">
+        <button class="bio-tab-btn active" id="wizard-tab-btn-face" onclick="switchWizardTab('face')">
+          <span>📸 3D Face ID</span>
+        </button>
+        <button class="bio-tab-btn" id="wizard-tab-btn-voice" onclick="switchWizardTab('voice')">
+          <span>🎙️ Voiceprint</span>
+        </button>
+      </div>
+
+      <!-- Tab 1: 3D Face ID Calibration -->
+      <div id="wizard-pane-face" style="display: flex; flex-direction: column; gap: 12px; align-items: center; width: 100%;">
+        <div class="bio-scanner-frame" style="width: 210px; height: 260px; margin: 0 auto; position: relative; border-radius: 16px; overflow: hidden; background: #000;">
+          <video id="wizard-camera-feed" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover;"></video>
+          <div id="wizard-laser" class="laser-scanner" style="display: none;"></div>
+          
+          <div class="facial-hud-matrix">
+            <div class="face-box-overlay">
+              <div class="face-eye-box left">👁️</div>
+              <div class="face-eye-box right">👁️</div>
+              <div class="face-nose-target"></div>
+              <div class="face-mouth-bracket"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bio-progress-container" style="width: 100%;">
+          <div class="bio-progress-track">
+            <div class="bio-progress-fill" id="wizard-face-fill" style="width: 0%;"></div>
+          </div>
+          <div class="bio-scan-readout" id="wizard-face-readout">STANDBY: POSITION FACE AND TAP START</div>
+        </div>
+
+        <button type="button" id="btn-wizard-capture-face" class="btn-bio-verify" onclick="startWizardFaceEnrollment()" style="width: 100%; padding: 12px; font-size: 0.85rem; font-weight: 800; background: linear-gradient(135deg, #06b6d4, #6366f1);">
+          📸 CALIBRATE & ANCHOR LIMFORD'S FACE ID
+        </button>
+        <canvas id="wizard-canvas" width="320" height="240" style="display: none;"></canvas>
+      </div>
+
+      <!-- Tab 2: Voiceprint Acoustic Calibration -->
+      <div id="wizard-pane-voice" style="display: none; flex-direction: column; gap: 12px; align-items: center; width: 100%;">
+        <div class="voice-waveform-container" style="margin: 0 auto; padding: 14px;">
+          <div class="voice-mic-glow" id="wizard-mic-glow" onclick="startWizardVoiceEnrollment()">🎙️</div>
+          <div class="waveform-bars" id="wizard-waveform">
+            <span class="bar" id="wbar-0"></span><span class="bar" id="wbar-1"></span>
+            <span class="bar" id="wbar-2"></span><span class="bar" id="wbar-3"></span>
+            <span class="bar" id="wbar-4"></span><span class="bar" id="wbar-5"></span>
+            <span class="bar" id="wbar-6"></span><span class="bar" id="wbar-7"></span>
+          </div>
+        </div>
+
+        <p class="voice-prompt-text" style="font-size: 0.82rem; margin: 0;">
+          Speak operator passphrase clearly:<br>
+          <strong style="color: #67e8f9; font-size: 0.95rem;">"I am Limford, authorize Leags."</strong>
+        </p>
+
+        <div class="bio-scan-readout" id="wizard-voice-readout">ACOUSTIC FFT ENGINE READY</div>
+
+        <button type="button" id="btn-wizard-record-voice" class="btn-bio-verify" onclick="startWizardVoiceEnrollment()" style="width: 100%; padding: 12px; font-size: 0.85rem; font-weight: 800; background: linear-gradient(135deg, #10b981, #06b6d4);">
+          🎙️ RECORD & ANCHOR VOICEPRINT
+        </button>
+      </div>
+
+      <!-- Footer Buttons -->
+      <div style="display: flex; gap: 8px; width: 100%; margin-top: 4px;">
+        <button type="button" id="btn-wizard-finish" onclick="finishEnrollmentAndUnlock()" class="btn-bio-verify" style="flex: 1; padding: 10px; font-size: 0.80rem; background: rgba(16, 185, 129, 0.25); border: 1px solid rgba(16, 185, 129, 0.5); color: #6ee7b7;">
+          ⚡ FINISH & UNLOCK LEAGS
+        </button>
+        <button type="button" onclick="closeEnrollmentWizard()" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: #cbd5e1; font-size: 0.78rem; padding: 10px 14px; border-radius: 10px; cursor: pointer;">
+          Cancel
+        </button>
       </div>
     </div>
   </div>
@@ -1538,6 +1626,12 @@
         </div>
         <button onclick="recalibrateVoiceFromVault()" style="background: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.4); color: #6ee7b7; font-size: 0.76rem; font-weight: 700; padding: 8px 12px; border-radius: 8px; cursor: pointer;">
           🎙️ Retake Voiceprint Biometrics
+        </button>
+
+        <div style="height: 1px; background: rgba(255,255,255,0.06); margin: 4px 0;"></div>
+
+        <button onclick="closeSecurityHub(); openEnrollmentWizard('face');" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(6, 182, 212, 0.25)); border: 1px solid rgba(99, 102, 241, 0.5); color: #c7d2fe; font-size: 0.78rem; font-weight: 700; padding: 9px 12px; border-radius: 8px; cursor: pointer;">
+          ✨ Open First-Time Setup & ID Update Wizard
         </button>
       </div>
 
@@ -2059,6 +2153,6 @@
   <div id="toast" class="toast"></div>
 
   <!-- App Script with Cache-Busting -->
-  <script src="app.js?v=faceid-v6"></script>
+  <script src="app.js?v=faceid-v7"></script>
 </body>
 </html>

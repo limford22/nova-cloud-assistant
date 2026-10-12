@@ -1,5 +1,5 @@
-// Leags PWA Service Worker - v6 (Strict Face ID Discrimination & Speech Engine)
-const CACHE_NAME = 'leags-cache-v6';
+// Leags PWA Service Worker - v7 (First-Time Enrollment & ID Update Wizard)
+const CACHE_NAME = 'leags-cache-v7';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();

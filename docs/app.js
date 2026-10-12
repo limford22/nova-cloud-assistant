@@ -1459,14 +1459,24 @@ function isBiometricsEnrolled() {
 }
 
 function updateLockScreenEnrollmentVisibility() {
-  const faceEnroll = document.getElementById("facial-enroll-container");
-  const voiceEnroll = document.getElementById("voice-enroll-container");
-  const enrolled = isBiometricsEnrolled();
+  const statusPill = document.getElementById("gate-enrollment-status-pill");
+  const hasFace = localStorage.getItem("leags_limford_facial_vector") !== null;
+  const hasVoice = localStorage.getItem("leags_limford_voiceprint_vector") !== null;
 
-  // Once enrolled, NEVER show calibration or setup buttons on the lock screen!
-  // No unauthorized stranger at the lock screen can ever reset Limford's biometrics.
-  if (faceEnroll) faceEnroll.style.display = enrolled ? "none" : "block";
-  if (voiceEnroll) voiceEnroll.style.display = enrolled ? "none" : "block";
+  if (statusPill) {
+    statusPill.style.display = "inline-flex";
+    if (hasFace || hasVoice) {
+      statusPill.style.background = "rgba(16, 185, 129, 0.15)";
+      statusPill.style.border = "1px solid rgba(16, 185, 129, 0.35)";
+      statusPill.style.color = "#34d399";
+      statusPill.innerHTML = `<span>🛡️</span> <span>Limford ID: <strong>Calibrated & Locked</strong></span>`;
+    } else {
+      statusPill.style.background = "rgba(245, 158, 11, 0.15)";
+      statusPill.style.border = "1px solid rgba(245, 158, 11, 0.4)";
+      statusPill.style.color = "#fbbf24";
+      statusPill.innerHTML = `<span>⚠️</span> <span>First-Time Setup Required — Tap Below</span>`;
+    }
+  }
 }
 
 // ---------------- 3D FACE ID BIOMETRIC ANATOMICAL ENGINE ----------------
@@ -2061,14 +2071,21 @@ function startLiveWaveformFeedback(analyser) {
   function render() {
     analyser.getByteFrequencyData(dataArray);
     for (let i = 0; i < 8; i++) {
+      let sum = 0;
+      for (let j = 0; j < step; j++) sum += dataArray[i * step + j];
+      const val = sum / step;
+      const h = Math.max(4, Math.round((val / 255) * 32));
+      const color = (val > 130) ? '#10b981' : '#38bdf8';
+
       const bar = document.getElementById(`vbar-${i}`);
       if (bar) {
-        let sum = 0;
-        for (let j = 0; j < step; j++) sum += dataArray[i * step + j];
-        const val = sum / step;
-        const h = Math.max(4, Math.round((val / 255) * 32));
         bar.style.height = `${h}px`;
-        bar.style.background = (val > 130) ? '#10b981' : '#38bdf8';
+        bar.style.background = color;
+      }
+      const wbar = document.getElementById(`wbar-${i}`);
+      if (wbar) {
+        wbar.style.height = `${h}px`;
+        wbar.style.background = color;
       }
     }
     voiceAnimId = requestAnimationFrame(render);
@@ -2086,6 +2103,11 @@ function stopLiveWaveformFeedback() {
     if (bar) {
       bar.style.height = "6px";
       bar.style.background = "#38bdf8";
+    }
+    const wbar = document.getElementById(`wbar-${i}`);
+    if (wbar) {
+      wbar.style.height = "6px";
+      wbar.style.background = "#38bdf8";
     }
   }
 }
@@ -2412,6 +2434,223 @@ async function recalibrateVoiceFromVault() {
     alert("Microphone error: " + e.message);
   }
   openSecurityHub();
+}
+
+// ---------------- FIRST-TIME ENROLLMENT & ID UPDATE WIZARD ----------------
+let wizardCameraStream = null;
+let wizardActiveTab = "face";
+let isWizardScanning = false;
+
+function openEnrollmentWizard(tab = "face") {
+  triggerHaptic(20);
+  // Free camera from background lock scan if running
+  if (gateCameraStream) {
+    try {
+      gateCameraStream.getTracks().forEach(t => t.stop());
+      gateCameraStream = null;
+    } catch(e) {}
+  }
+  isScanningFace = false;
+
+  const modal = document.getElementById("biometric-enrollment-wizard-modal");
+  if (modal) modal.style.display = "flex";
+
+  switchWizardTab(tab);
+}
+
+function closeEnrollmentWizard() {
+  triggerHaptic(15);
+  if (wizardCameraStream) {
+    try {
+      wizardCameraStream.getTracks().forEach(t => t.stop());
+      wizardCameraStream = null;
+    } catch(e) {}
+  }
+  const modal = document.getElementById("biometric-enrollment-wizard-modal");
+  if (modal) modal.style.display = "none";
+
+  // Re-initialize lock gate if still locked
+  if (!isBiometricVerified) {
+    initSecurityGate();
+  }
+}
+
+async function switchWizardTab(tab) {
+  triggerHaptic(15);
+  wizardActiveTab = tab;
+  const facePane = document.getElementById("wizard-pane-face");
+  const voicePane = document.getElementById("wizard-pane-voice");
+  const tabBtnFace = document.getElementById("wizard-tab-btn-face");
+  const tabBtnVoice = document.getElementById("wizard-tab-btn-voice");
+
+  if (tabBtnFace) tabBtnFace.classList.toggle("active", tab === "face");
+  if (tabBtnVoice) tabBtnVoice.classList.toggle("active", tab === "voice");
+
+  if (tab === "face") {
+    if (voicePane) voicePane.style.display = "none";
+    if (facePane) facePane.style.display = "flex";
+
+    const videoEl = document.getElementById("wizard-camera-feed");
+    const readout = document.getElementById("wizard-face-readout");
+    if (readout) readout.textContent = "READY: POSITION YOUR FACE & TAP CALIBRATE";
+
+    try {
+      if (!wizardCameraStream) {
+        wizardCameraStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
+          audio: false
+        });
+        if (videoEl) videoEl.srcObject = wizardCameraStream;
+      }
+    } catch(err) {
+      if (readout) readout.textContent = "CAMERA RESTRICTED: PLEASE ALLOW CAMERA ACCESS";
+    }
+  } else {
+    if (wizardCameraStream) {
+      try {
+        wizardCameraStream.getTracks().forEach(t => t.stop());
+        wizardCameraStream = null;
+      } catch(e) {}
+    }
+    if (facePane) facePane.style.display = "none";
+    if (voicePane) voicePane.style.display = "flex";
+  }
+}
+
+async function startWizardFaceEnrollment() {
+  if (isWizardScanning) return;
+  isWizardScanning = true;
+
+  const videoEl = document.getElementById("wizard-camera-feed");
+  const canvasEl = document.getElementById("wizard-canvas");
+  const fillEl = document.getElementById("wizard-face-fill");
+  const readout = document.getElementById("wizard-face-readout");
+  const btn = document.getElementById("btn-wizard-capture-face");
+  const laserEl = document.getElementById("wizard-laser");
+
+  if (btn) btn.disabled = true;
+  if (laserEl) laserEl.style.display = "block";
+
+  playChime(550, 770);
+  if (readout) readout.textContent = "HOLD STILL: CAPTURING 3D FACIAL CONTOUR (1/3)...";
+  if (fillEl) fillEl.style.width = "33%";
+
+  setTimeout(() => {
+    const f1 = extractFacialFeatures(videoEl, canvasEl);
+    if (!f1) {
+      isWizardScanning = false;
+      if (btn) btn.disabled = false;
+      if (laserEl) laserEl.style.display = "none";
+      if (fillEl) fillEl.style.width = "0%";
+      alert("No face detected. Position your face directly in the frame and retry.");
+      if (readout) readout.textContent = "STANDBY: POSITION FACE AND RETRY";
+      return;
+    }
+
+    playBeep(660, 0.05, "sine");
+    if (readout) readout.textContent = "HOLD STILL: COMPUTING BIOMETRIC GEOMETRY (2/3)...";
+    if (fillEl) fillEl.style.width = "66%";
+
+    setTimeout(() => {
+      const f2 = extractFacialFeatures(videoEl, canvasEl);
+      if (!f2) {
+        isWizardScanning = false;
+        if (btn) btn.disabled = false;
+        if (laserEl) laserEl.style.display = "none";
+        alert("Face moved out of frame. Please retry.");
+        return;
+      }
+
+      playBeep(770, 0.05, "sine");
+      if (readout) readout.textContent = "SYNTHESIZING LIMFORD'S CRYPTO-ANCHOR (3/3)...";
+      if (fillEl) fillEl.style.width = "100%";
+
+      setTimeout(() => {
+        const f3 = extractFacialFeatures(videoEl, canvasEl) || f2;
+        isWizardScanning = false;
+        if (btn) btn.disabled = false;
+        if (laserEl) laserEl.style.display = "none";
+
+        const avgRatios = f1.ratios.map((r, i) => Number(((r + f2.ratios[i] + f3.ratios[i]) / 3).toFixed(4)));
+        const avgAspect = Number(((f1.aspect + f2.aspect + f3.aspect) / 3).toFixed(4));
+        const avgGrid = f1.grid.map((g, i) => Number(((g + f2.grid[i] + f3.grid[i]) / 3).toFixed(4)));
+        const avgChroma = f1.chromaHist.map((c, i) => Number(((c + f2.chromaHist[i] + f3.chromaHist[i]) / 3).toFixed(4)));
+
+        const anchorVector = {
+          ratios: avgRatios,
+          aspect: avgAspect,
+          grid: avgGrid,
+          chromaHist: avgChroma,
+          enrolledAt: Date.now(),
+          operator: "Limford"
+        };
+
+        localStorage.setItem("leags_limford_facial_vector", JSON.stringify(anchorVector));
+        localStorage.setItem("leags_faceid_enrolled", "true");
+        localStorage.removeItem("leags_limford_retinal_vector");
+
+        playChime(660, 990);
+        triggerHaptic([60, 40, 120]);
+        if (readout) readout.textContent = "✓ LIMFORD'S FACE ID ANCHORED & LOCKED!";
+        if (btn) {
+          btn.textContent = "✓ FACE ID ENROLLED (TAP TO RE-CALIBRATE)";
+          btn.style.background = "linear-gradient(135deg, #10b981, #06b6d4)";
+        }
+        updateLockScreenEnrollmentVisibility();
+        showToast("✓ Face ID profile enrolled & locked for Limford!");
+        speakOutLoud("Face ID successfully enrolled and secured for Operator Limford.");
+      }, 300);
+    }, 300);
+  }, 450);
+}
+
+async function startWizardVoiceEnrollment() {
+  const readout = document.getElementById("wizard-voice-readout");
+  const btn = document.getElementById("btn-wizard-record-voice");
+  if (btn) btn.disabled = true;
+
+  if (readout) readout.textContent = "LISTENING... SPEAK NOW: 'I AM LIMFORD, AUTHORIZE LEAGS.'";
+  playBeep(660, 0.15, "sine");
+
+  try {
+    const acousticVec = await captureAcousticFingerprint(3200);
+    if (btn) btn.disabled = false;
+
+    if (acousticVec) {
+      localStorage.setItem("leags_limford_voiceprint_vector", JSON.stringify(acousticVec));
+      localStorage.setItem("leags_biometrics_enrolled", "true");
+      playChime(660, 990);
+      triggerHaptic([60, 40, 120]);
+      if (readout) readout.textContent = "✓ LIMFORD'S VOICEPRINT PROFILE ANCHORED & LOCKED!";
+      if (btn) {
+        btn.textContent = "✓ VOICEPRINT ENROLLED (TAP TO RETAKE)";
+        btn.style.background = "linear-gradient(135deg, #10b981, #06b6d4)";
+      }
+      updateLockScreenEnrollmentVisibility();
+      showToast("✓ Voiceprint enrolled for Limford!");
+      speakOutLoud("Voiceprint successfully calibrated and anchored for Limford.");
+    } else {
+      if (readout) readout.textContent = "NO SPEECH DETECTED. PLEASE SPEAK CLEARLY INTO MIC.";
+      alert("No speech detected. Please speak clearly into your microphone and try again.");
+    }
+  } catch(err) {
+    if (btn) btn.disabled = false;
+    if (readout) readout.textContent = "MICROPHONE PERMISSION DENIED";
+    alert("Microphone permission was denied.");
+  }
+}
+
+function finishEnrollmentAndUnlock() {
+  const hasFace = localStorage.getItem("leags_limford_facial_vector") !== null;
+  const hasVoice = localStorage.getItem("leags_limford_voiceprint_vector") !== null;
+
+  if (!hasFace && !hasVoice) {
+    alert("Please calibrate at least your Face ID or Voiceprint before unlocking.");
+    return;
+  }
+
+  closeEnrollmentWizard();
+  completeAuthorization("First-Time Biometric Setup & ID Calibration");
 }
 
 // ---------------- GATE VISIBILITY & MODE CONTROL ----------------
