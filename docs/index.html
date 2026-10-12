@@ -9,6 +9,7 @@
   <title>Leags AI Hub</title>
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" href="icon.png">
+  <script src="mqtt.min.js"></script>
   <style>
     :root {
       --bg-main: #070a13;
@@ -899,9 +900,543 @@
       border-color: var(--danger);
       color: #fca5a5;
     }
+
+    /* ================= MANDATORY BIOMETRIC SECURITY GATE ================= */
+    .bio-gate-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: radial-gradient(circle at center, #091326 0%, #030712 100%);
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      backdrop-filter: blur(25px);
+      -webkit-backdrop-filter: blur(25px);
+      transition: opacity 0.45s ease, transform 0.45s ease;
+    }
+
+    .bio-gate-overlay.unlocked {
+      opacity: 0;
+      pointer-events: none;
+      transform: scale(1.05);
+    }
+
+    .bio-gate-modal {
+      background: rgba(11, 19, 36, 0.96);
+      border: 1px solid rgba(6, 182, 212, 0.5);
+      box-shadow: 0 0 50px rgba(6, 182, 212, 0.25), inset 0 0 30px rgba(6, 182, 212, 0.08);
+      border-radius: 28px;
+      width: 100%;
+      max-width: 420px;
+      padding: 24px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .bio-gate-glow-badge {
+      font-size: 0.65rem;
+      letter-spacing: 0.18em;
+      font-weight: 800;
+      color: #06b6d4;
+      text-transform: uppercase;
+      background: rgba(6, 182, 212, 0.12);
+      border: 1px solid rgba(6, 182, 212, 0.35);
+      padding: 4px 12px;
+      border-radius: 20px;
+      display: inline-block;
+      margin-bottom: 4px;
+    }
+
+    .bio-gate-title {
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: #f8fafc;
+      letter-spacing: -0.01em;
+      margin-bottom: 2px;
+    }
+
+    .bio-gate-sub {
+      font-size: 0.70rem;
+      color: #94a3b8;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .bio-operator-tag {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 6px 14px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      color: #e2e8f0;
+    }
+
+    .bio-operator-tag strong {
+      color: #67e8f9;
+    }
+
+    .clearance-level {
+      background: rgba(16, 185, 129, 0.2);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 6px;
+    }
+
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 10px #10b981;
+      animation: pulseGreen 1.5s infinite;
+    }
+
+    @keyframes pulseGreen {
+      0% { transform: scale(0.9); opacity: 0.7; }
+      50% { transform: scale(1.3); opacity: 1; }
+      100% { transform: scale(0.9); opacity: 0.7; }
+    }
+
+    .bio-mode-tabs {
+      display: flex;
+      gap: 6px;
+      width: 100%;
+      background: rgba(15, 23, 42, 0.6);
+      padding: 4px;
+      border-radius: 14px;
+    }
+
+    .bio-tab-btn {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      padding: 8px 4px;
+      font-size: 0.70rem;
+      font-weight: 700;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .bio-tab-btn.active {
+      background: rgba(6, 182, 212, 0.2);
+      color: #67e8f9;
+      border: 1px solid rgba(6, 182, 212, 0.4);
+    }
+
+    .bio-mode-content {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .bio-scanner-frame {
+      position: relative;
+      width: 175px;
+      height: 175px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 4px 0;
+    }
+
+    .cyber-bracket {
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      border-color: #06b6d4;
+      border-style: solid;
+      pointer-events: none;
+    }
+    .cyber-bracket.top-left { top: 0; left: 0; border-width: 3px 0 0 3px; }
+    .cyber-bracket.top-right { top: 0; right: 0; border-width: 3px 3px 0 0; }
+    .cyber-bracket.bottom-left { bottom: 0; left: 0; border-width: 0 0 3px 3px; }
+    .cyber-bracket.bottom-right { bottom: 0; right: 0; border-width: 0 3px 3px 0; }
+
+    .viewfinder-circle {
+      width: 150px;
+      height: 150px;
+      border-radius: 50%;
+      position: relative;
+      overflow: hidden;
+      background: #020617;
+      border: 2px dashed rgba(6, 182, 212, 0.6);
+      box-shadow: 0 0 25px rgba(6, 182, 212, 0.35);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .viewfinder-circle video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .laser-scanner {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: #22d3ee;
+      box-shadow: 0 0 15px #22d3ee;
+      animation: laserSweep 1.8s infinite alternate ease-in-out;
+      display: none;
+    }
+
+    @keyframes laserSweep {
+      0% { top: 5%; }
+      100% { top: 95%; }
+    }
+
+    .iris-target {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 70px;
+      height: 70px;
+      pointer-events: none;
+    }
+
+    .iris-ring {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      border-radius: 50%;
+      border: 1px solid rgba(6, 182, 212, 0.5);
+    }
+
+    .iris-ring.ring-1 {
+      border: 1.5px dashed rgba(34, 211, 238, 0.8);
+      animation: rotateClockwise 8s infinite linear;
+    }
+
+    .iris-ring.ring-2 {
+      inset: 12px;
+      border: 1px solid rgba(16, 185, 129, 0.6);
+    }
+
+    @keyframes rotateClockwise {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .bio-progress-container {
+      width: 90%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .bio-progress-track {
+      width: 100%;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .bio-progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #06b6d4, #10b981);
+      border-radius: 10px;
+      transition: width 0.3s ease;
+    }
+
+    .bio-scan-readout {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      color: #38bdf8;
+      text-transform: uppercase;
+    }
+
+    .btn-bio-verify {
+      background: linear-gradient(135deg, #06b6d4, #6366f1);
+      border: none;
+      color: #fff;
+      font-weight: 800;
+      font-size: 0.82rem;
+      letter-spacing: 0.05em;
+      padding: 12px 20px;
+      border-radius: 14px;
+      cursor: pointer;
+      box-shadow: 0 4px 20px rgba(6, 182, 212, 0.4);
+      transition: all 0.2s;
+      width: 100%;
+    }
+
+    .btn-bio-verify:active {
+      transform: scale(0.97);
+    }
+
+    /* Voice Biometric View */
+    .voice-waveform-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      margin: 8px 0;
+    }
+
+    .voice-mic-glow {
+      width: 68px;
+      height: 68px;
+      border-radius: 50%;
+      background: rgba(6, 182, 212, 0.15);
+      border: 2px solid #06b6d4;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.8rem;
+      box-shadow: 0 0 25px rgba(6, 182, 212, 0.4);
+      cursor: pointer;
+      animation: pulseGlow 2s infinite;
+    }
+
+    @keyframes pulseGlow {
+      0% { box-shadow: 0 0 15px rgba(6, 182, 212, 0.3); }
+      50% { box-shadow: 0 0 35px rgba(6, 182, 212, 0.7); }
+      100% { box-shadow: 0 0 15px rgba(6, 182, 212, 0.3); }
+    }
+
+    .waveform-bars {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      height: 32px;
+    }
+
+    .waveform-bars .bar {
+      width: 4px;
+      height: 6px;
+      background: #38bdf8;
+      border-radius: 3px;
+      transition: height 0.15s ease;
+    }
+
+    .waveform-bars.active .bar {
+      animation: soundBar 0.8s infinite alternate ease-in-out;
+    }
+
+    .waveform-bars.active .bar:nth-child(2) { animation-delay: 0.1s; }
+    .waveform-bars.active .bar:nth-child(3) { animation-delay: 0.2s; }
+    .waveform-bars.active .bar:nth-child(4) { animation-delay: 0.3s; }
+    .waveform-bars.active .bar:nth-child(5) { animation-delay: 0.4s; }
+    .waveform-bars.active .bar:nth-child(6) { animation-delay: 0.3s; }
+    .waveform-bars.active .bar:nth-child(7) { animation-delay: 0.2s; }
+    .waveform-bars.active .bar:nth-child(8) { animation-delay: 0.1s; }
+
+    @keyframes soundBar {
+      0% { height: 6px; }
+      100% { height: 28px; background: #10b981; }
+    }
+
+    .voice-prompt-text {
+      font-size: 0.80rem;
+      color: #cbd5e1;
+      line-height: 1.4;
+    }
+
+    /* PIN Keypad */
+    .pin-display {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .pin-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 2px solid #06b6d4;
+      background: transparent;
+      transition: background 0.2s;
+    }
+
+    .pin-dot.filled {
+      background: #06b6d4;
+      box-shadow: 0 0 10px #06b6d4;
+    }
+
+    .pin-keypad {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      width: 200px;
+    }
+
+    .pin-btn {
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #fff;
+      font-size: 1.2rem;
+      font-weight: 700;
+      height: 44px;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .pin-btn:active {
+      background: rgba(6, 182, 212, 0.3);
+      transform: scale(0.95);
+    }
+
+    .pin-clear { color: #f87171; }
+    .pin-enter { color: #34d399; }
+
+    .bio-sync-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.68rem;
+      color: #64748b;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      padding-top: 8px;
+      width: 100%;
+      text-align: left;
+    }
+
+    .bio-pill {
+      cursor: pointer;
+      border-color: rgba(16, 185, 129, 0.4) !important;
+      color: #34d399 !important;
+    }
   </style>
 </head>
 <body>
+
+  <!-- MANDATORY BIOMETRIC SECURITY GATE OVERLAY -->
+  <div id="mandatory-security-gate" class="bio-gate-overlay">
+    <div class="bio-gate-modal">
+      <div class="bio-gate-header">
+        <div class="bio-gate-glow-badge">SECURITY PROTOCOL OMEGA</div>
+        <h2 class="bio-gate-title">LEAGS IDENTITY CLEARANCE</h2>
+        <p class="bio-gate-sub">BIOMETRIC VERIFICATION REQUIRED BEFORE ACCESS</p>
+        <div class="bio-operator-tag">
+          <span class="pulse-dot"></span>
+          <span>OPERATOR: <strong>LIMFORD</strong></span>
+          <span class="clearance-level">LEVEL 1 ALPHA</span>
+        </div>
+      </div>
+
+      <!-- Mode Selector Tabs -->
+      <div class="bio-mode-tabs">
+        <button class="bio-tab-btn active" id="tab-btn-retinal" onclick="switchBioMode('retinal')">
+          <span>👁️ Retinal Scan</span>
+        </button>
+        <button class="bio-tab-btn" id="tab-btn-voice" onclick="switchBioMode('voice')">
+          <span>🎙️ Voiceprint</span>
+        </button>
+        <button class="bio-tab-btn" id="tab-btn-pin" onclick="switchBioMode('pin')">
+          <span>🔢 PIN</span>
+        </button>
+      </div>
+
+      <!-- Mode 1: Retinal & Optical Face Scan View -->
+      <div class="bio-mode-content" id="bio-mode-retinal">
+        <div class="bio-scanner-frame">
+          <div class="cyber-bracket top-left"></div>
+          <div class="cyber-bracket top-right"></div>
+          <div class="cyber-bracket bottom-left"></div>
+          <div class="cyber-bracket bottom-right"></div>
+
+          <div class="viewfinder-circle">
+            <video id="gate-camera-feed" autoplay playsinline muted></video>
+            <div class="laser-scanner" id="gate-laser"></div>
+            <div class="iris-target" id="gate-iris">
+              <div class="iris-ring ring-1"></div>
+              <div class="iris-ring ring-2"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bio-progress-container">
+          <div class="bio-progress-track">
+            <div class="bio-progress-fill" id="gate-scan-fill"></div>
+          </div>
+          <div class="bio-scan-readout" id="gate-scan-readout">STANDBY: POSITION FACE IN RETICLE</div>
+        </div>
+
+        <div class="bio-gate-actions" style="width: 100%;">
+          <button class="btn-bio-verify" id="btn-start-face-scan" onclick="startBiometricFaceScan()">
+            ⚡ INITIALIZE RETINAL & OPTICAL SCAN
+          </button>
+        </div>
+      </div>
+
+      <!-- Mode 2: Voiceprint Biometrics View -->
+      <div class="bio-mode-content" id="bio-mode-voice" style="display: none;">
+        <div class="voice-waveform-container">
+          <div class="voice-mic-glow" id="gate-mic-icon" onclick="startGateVoiceVerify()">🎙️</div>
+          <div class="waveform-bars" id="gate-waveform">
+            <span class="bar"></span><span class="bar"></span><span class="bar"></span>
+            <span class="bar"></span><span class="bar"></span><span class="bar"></span>
+            <span class="bar"></span><span class="bar"></span><span class="bar"></span>
+          </div>
+        </div>
+        <p class="voice-prompt-text">
+          Tap mic and speak passphrase:<br>
+          <strong style="color: #67e8f9;">"I am Limford, authorize Leags."</strong>
+        </p>
+        <div class="bio-scan-readout" id="gate-voice-readout">VOICE SENSOR READY</div>
+        <div class="bio-gate-actions" style="width: 100%;">
+          <button class="btn-bio-verify" onclick="startGateVoiceVerify()">
+            🎙️ EXAMINE VOICE FREQUENCIES
+          </button>
+        </div>
+      </div>
+
+      <!-- Mode 3: Security Passcode PIN View -->
+      <div class="bio-mode-content" id="bio-mode-pin" style="display: none;">
+        <p style="font-size: 0.78rem; color: #94a3b8;">Enter 4-Digit Security Master PIN</p>
+        <div class="pin-display">
+          <span class="pin-dot" id="pdot-1"></span>
+          <span class="pin-dot" id="pdot-2"></span>
+          <span class="pin-dot" id="pdot-3"></span>
+          <span class="pin-dot" id="pdot-4"></span>
+        </div>
+        <div class="pin-keypad">
+          <button class="pin-btn" onclick="pressPin('1')">1</button>
+          <button class="pin-btn" onclick="pressPin('2')">2</button>
+          <button class="pin-btn" onclick="pressPin('3')">3</button>
+          <button class="pin-btn" onclick="pressPin('4')">4</button>
+          <button class="pin-btn" onclick="pressPin('5')">5</button>
+          <button class="pin-btn" onclick="pressPin('6')">6</button>
+          <button class="pin-btn" onclick="pressPin('7')">7</button>
+          <button class="pin-btn" onclick="pressPin('8')">8</button>
+          <button class="pin-btn" onclick="pressPin('9')">9</button>
+          <button class="pin-btn pin-clear" onclick="clearPin()">C</button>
+          <button class="pin-btn" onclick="pressPin('0')">0</button>
+          <button class="pin-btn pin-enter" onclick="submitPin()">✓</button>
+        </div>
+        <div class="bio-scan-readout" id="gate-pin-readout" style="margin-top: 4px;">DEFAULT PIN: 2026</div>
+      </div>
+
+      <div class="bio-sync-status">
+        <span>🔄</span>
+        <span>Cross-device clearance: Unlocking on Phone unlocks PC, and vice-versa.</span>
+      </div>
+    </div>
+  </div>
 
   <!-- Top Glass Header -->
   <header>
@@ -917,6 +1452,10 @@
     </div>
     
     <div class="header-badges">
+      <div class="status-pill bio-pill" id="header-bio-badge" onclick="lockSystemManually()" title="Click to lock system">
+        <span id="header-bio-icon">🛡️</span>
+        <span id="header-bio-text">Limford (Auth)</span>
+      </div>
       <span class="badge-phone" id="phone-battery-badge">📱 Galaxy</span>
       <div class="status-pill" id="pc-status-pill">
         <span class="status-dot" id="pc-status-dot"></span>

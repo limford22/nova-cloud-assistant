@@ -1,5 +1,5 @@
 // Minimal Service Worker to enable native PWA installation
-const CACHE_NAME = 'leags-cache-v1';
+const CACHE_NAME = 'leags-cache-v2';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
