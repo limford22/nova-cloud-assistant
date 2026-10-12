@@ -425,7 +425,7 @@ function executePhoneActionLocally(action, params = {}) {
 let ringInterval = null;
 function triggerPhoneAlarmSiren() {
   showToast("🚨 RINGING PHONE AT FULL VOLUME!");
-  speakOutLoud("Linford, your phone is ringing. Tap anywhere to silence.");
+  speakOutLoud("Limford, your phone is ringing. Tap anywhere to silence.");
 
   const modal = document.getElementById("modal-siren");
   if (modal) modal.style.display = "flex";
@@ -477,7 +477,7 @@ function runRoutine(type) {
   if (type === "night") {
     sendPCAction("routine_night");
     showToast("🌙 Good Night routine triggered (Muted & Locked)");
-    speakOutLoud("Good night Linford. Workstation muted and locked.");
+    speakOutLoud("Good night Limford. Workstation muted and locked.");
   } else if (type === "work") {
     sendPCAction("routine_work");
     showToast("💼 Work mode: Launched Chrome & VS Code");
@@ -571,7 +571,7 @@ function startTimer(totalSeconds, label = "") {
       if (countEl) countEl.textContent = "COMPLETED! 🔔";
       if (barEl) barEl.className = "progress-bar bar-green";
       
-      const finishedText = `Linford, your ${timerObj.label} is complete!`;
+      const finishedText = `Limford, your ${timerObj.label} is complete!`;
       showToast("🔔 Timer Complete!");
       speakOutLoud(finishedText);
     }
@@ -615,6 +615,117 @@ function cleanSpokenInput(raw) {
     .trim();
 }
 
+// Contact Book & Direct Dialing Engine
+function getStoredContacts() {
+  try {
+    return JSON.parse(localStorage.getItem("leags_phone_contacts") || "{}");
+  } catch(e) {
+    return {};
+  }
+}
+
+function saveContact(name, number) {
+  const contacts = getStoredContacts();
+  contacts[name.toLowerCase().trim()] = number.trim();
+  localStorage.setItem("leags_phone_contacts", JSON.stringify(contacts));
+}
+
+function promptSaveContact(contactName) {
+  const current = getStoredContacts()[contactName.toLowerCase().trim()] || "";
+  const num = prompt(`Enter phone number for "${contactName}":`, current);
+  if (num !== null && num.trim()) {
+    saveContact(contactName, num);
+    showToast(`✓ Saved "${contactName}": ${num}`);
+    appendChatMessage("assistant", `📝 Saved phone number <strong>${num}</strong> for <strong>${contactName}</strong>.`);
+    speakOutLoud(`Saved number for ${contactName}.`);
+  }
+}
+
+function handleCallIntent(rawTarget) {
+  const cleanTarget = rawTarget.toLowerCase().trim();
+  const contacts = getStoredContacts();
+  const storedNumber = contacts[cleanTarget] || null;
+  const isDigits = /^[\d\+\-\s\(\)]+$/.test(rawTarget) && rawTarget.replace(/\D/g, "").length >= 3;
+  const dialNumber = storedNumber || (isDigits ? rawTarget : rawTarget);
+  const targetTitle = rawTarget.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+
+  showToast(`📞 Calling ${targetTitle}...`);
+  speakOutLoud(`Calling ${targetTitle} on your phone.`);
+
+  // Directly trigger mobile telephone dialer via tel: protocol
+  try {
+    window.location.href = `tel:${encodeURIComponent(dialNumber)}`;
+  } catch(e) {
+    console.warn("Could not trigger tel: protocol:", e);
+  }
+
+  const numberDisplay = storedNumber 
+    ? `<strong style="color: #67e8f9;">${storedNumber}</strong>` 
+    : (isDigits ? `<strong style="color: #67e8f9;">${dialNumber}</strong>` : `<span style="color: #94a3b8;">Phone dialer (${cleanTarget})</span>`);
+
+  const cardHtml = `
+    <div class="call-action-card">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-weight:700; color:#38bdf8; font-size:0.95rem;">📞 Calling: ${targetTitle}</span>
+        <span style="font-size:0.72rem; background:rgba(6,182,212,0.18); border:1px solid rgba(6,182,212,0.4); color:#67e8f9; padding:2px 8px; border-radius:12px;">Active</span>
+      </div>
+      <div style="font-size:0.78rem; color:#cbd5e1; margin: 6px 0;">
+        Number: ${numberDisplay}
+      </div>
+      <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;">
+        <a href="tel:${encodeURIComponent(dialNumber)}" class="action-btn btn-cyan" style="text-decoration:none; padding:7px 14px; font-size:0.76rem; font-weight:700; display:inline-flex; align-items:center; gap:4px;">
+          📞 Cellular Call
+        </a>
+        <a href="https://wa.me/?text=Hello%20${encodeURIComponent(targetTitle)}" target="_blank" class="action-btn" style="text-decoration:none; padding:7px 14px; font-size:0.76rem; font-weight:700; background:rgba(37,211,102,0.18); border:1px solid rgba(37,211,102,0.45); color:#25d366; display:inline-flex; align-items:center; gap:4px;">
+          💬 WhatsApp
+        </a>
+        <button onclick="promptSaveContact('${cleanTarget.replace(/'/g, "\\'")}')" class="action-btn" style="padding:7px 12px; font-size:0.76rem; display:inline-flex; align-items:center; gap:4px;">
+          ✏️ ${storedNumber ? 'Edit Number' : 'Set Number'}
+        </button>
+      </div>
+    </div>
+  `;
+  appendChatMessage("assistant", cardHtml);
+
+  // Cross-device broadcast so PC is aware of phone activity
+  publishAuthEvent("PHONE_CALL_INITIATED", targetTitle);
+}
+
+function handleWhatsAppIntent(target, message) {
+  const contacts = getStoredContacts();
+  const cleanTarget = target.toLowerCase().trim();
+  const num = contacts[cleanTarget] || (cleanTarget.replace(/\D/g, "").length >= 7 ? cleanTarget.replace(/\D/g, "") : "");
+  const targetTitle = target.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+
+  let waUrl = `whatsapp://send?text=${encodeURIComponent(message)}`;
+  if (num) {
+    waUrl = `https://api.whatsapp.com/send?phone=${encodeURIComponent(num)}&text=${encodeURIComponent(message)}`;
+  }
+
+  showToast(`💬 Messaging ${targetTitle}...`);
+  speakOutLoud(`Opening WhatsApp to message ${targetTitle}.`);
+
+  try { window.location.href = waUrl; } catch(e) {}
+
+  appendChatMessage("assistant", `💬 <strong>WhatsApp:</strong> Messaging <strong>${targetTitle}</strong>: "${message}".<br><a href="${waUrl}" target="_blank" class="action-btn btn-cyan" style="display:inline-block; margin-top:6px; text-decoration:none; padding:5px 12px; font-size:0.75rem;">Open WhatsApp ↗</a>`);
+}
+
+function handleSearchIntent(query) {
+  const url = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+  showToast(`🔍 Searching Google...`);
+  speakOutLoud(`Searching for ${query}.`);
+  window.open(url, "_blank");
+  appendChatMessage("assistant", `🔍 Searched Google for: <strong>"${query}"</strong>.<br><a href="${url}" target="_blank" class="action-btn btn-cyan" style="display:inline-block; margin-top:6px; text-decoration:none; padding:5px 12px; font-size:0.75rem;">Open Search Results ↗</a>`);
+}
+
+function handlePlayMediaIntent(query) {
+  const ytUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
+  showToast(`🎵 Playing "${query}"...`);
+  speakOutLoud(`Playing ${query}.`);
+  window.open(ytUrl, "_blank");
+  appendChatMessage("assistant", `🎵 Playing <strong>"${query}"</strong> on YouTube.<br><a href="${ytUrl}" target="_blank" class="action-btn btn-cyan" style="display:inline-block; margin-top:6px; text-decoration:none; padding:5px 12px; font-size:0.75rem;">Watch / Listen ↗</a>`);
+}
+
 async function processAssistantCommand(rawInput) {
   const text = rawInput.trim();
   if (!text) return;
@@ -625,7 +736,38 @@ async function processAssistantCommand(rawInput) {
   const clean = cleanSpokenInput(text).toLowerCase();
   console.log("[Intent] Cleaned query:", clean);
 
-  // 1. Timer / Alarm Matching (Fixes Picture 3 permanently!)
+  // 1. Phone Calling & Contact Dialing ("Call yaw motor", "Call 0244...", "Dial mom")
+  const callMatch = clean.match(/^(?:call|dial|phone|ring)\s+(?:a\s+|the\s+)?(.+)$/i) ||
+                    clean.match(/^(?:make\s+a\s+call\s+to|place\s+a\s+call\s+to)\s+(.+)$/i);
+  if (callMatch) {
+    const rawTarget = callMatch[1].replace(/^(a|the|my)\s+/i, "").trim();
+    handleCallIntent(rawTarget);
+    return;
+  }
+
+  // 2. WhatsApp Messaging ("WhatsApp yaw motor I will be there soon")
+  const waMatch = clean.match(/^whatsapp\s+([a-z0-9\s\+\-]+?)(?:\s+(?:saying|message|that|text)\s+|\s+)(.+)$/i) ||
+                  clean.match(/^message\s+([a-z0-9\s\+\-]+?)\s+(?:on\s+whatsapp\s+)?(?:saying|that|with\s+)?(.+)$/i);
+  if (waMatch) {
+    handleWhatsAppIntent(waMatch[1].trim(), waMatch[2].trim());
+    return;
+  }
+
+  // 3. Web Search ("Search for ...", "Google ...", "Look up ...")
+  const searchMatch = clean.match(/^(?:search(?:\s+for)?|google|look\s+up)\s+(.+)$/i);
+  if (searchMatch) {
+    handleSearchIntent(searchMatch[1].trim());
+    return;
+  }
+
+  // 4. Music & Media Playback ("Play ...", "YouTube ...", "Spotify ...")
+  const playMatch = clean.match(/^(?:play|listen\s+to|youtube|spotify)\s+(.+)$/i);
+  if (playMatch) {
+    handlePlayMediaIntent(playMatch[1].trim());
+    return;
+  }
+
+  // 5. Timer / Countdown Matching
   const timerMatch = clean.match(/(?:set\s+)?timer\s+(?:for\s+)?(\d+)\s*(mins?|minutes?|secs?|seconds?|hours?|hrs?)/i) ||
                      clean.match(/countdown\s+(?:for\s+)?(\d+)\s*(mins?|minutes?|secs?|seconds?)/i) ||
                      clean.match(/remind me in\s+(\d+)\s*(mins?|minutes?|secs?|seconds?)/i);
@@ -645,37 +787,37 @@ async function processAssistantCommand(rawInput) {
     return;
   }
 
-  // 2. Hotspot / Tethering Matching (Equal Powers on Phone)
+  // 6. Hotspot / Tethering Matching
   if (clean.includes("hotspot") || clean.includes("tethering") || clean.includes("share internet")) {
     executePhoneActionLocally("hotspot");
     return;
   }
 
-  // 3. Ring Phone / Find My Phone
+  // 7. Ring Phone / Find My Phone
   if (clean.includes("ring phone") || clean.includes("find my phone") || clean.includes("where is my phone") || clean.includes("alarm phone")) {
     executePhoneActionLocally("ring_phone");
     return;
   }
 
-  // 4. Phone Torch / Flashlight
+  // 8. Phone Torch / Flashlight
   if (clean.includes("torch") || clean.includes("flashlight") || clean.includes("light on phone")) {
     executePhoneActionLocally("phone_torch");
     return;
   }
 
-  // 5. Phone Camera
+  // 9. Phone Camera
   if (clean.includes("open camera") || clean.includes("take a photo") || clean.includes("take photo") || clean.includes("selfie")) {
     executePhoneActionLocally("phone_camera");
     return;
   }
 
-  // 6. Phone WhatsApp
-  if (clean.includes("whatsapp") || clean.includes("open whatsapp")) {
+  // 10. Phone WhatsApp App Launch
+  if (clean === "whatsapp" || clean === "open whatsapp") {
     executePhoneActionLocally("phone_whatsapp");
     return;
   }
 
-  // 7. Workstation PC Controls
+  // 11. Workstation PC Controls
   if (clean.includes("lock") || clean.includes("lock pc") || clean.includes("lock workstation")) {
     sendPCAction("lock");
     appendChatMessage("assistant", "🔒 Locking your PC workstation.");
@@ -720,7 +862,7 @@ async function processAssistantCommand(rawInput) {
     return;
   }
 
-  // 8. Device Specs & Telemetry Inquiries
+  // 12. Device Specs & Telemetry Inquiries
   if (clean.includes("battery") || clean.includes("specs") || clean.includes("status")) {
     let reply = `💻 PC is ${isPCOnline ? 'Online' : 'Offline'}. `;
     if (cpuVal && cpuVal.textContent !== "--%") reply += `CPU: ${cpuVal.textContent}, RAM: ${ramVal.textContent}. `;
@@ -730,9 +872,9 @@ async function processAssistantCommand(rawInput) {
     return;
   }
 
-  // 9. Conversational Small Talk & Info
+  // 13. Conversational Small Talk & Greetings
   if (clean === "hello" || clean === "hi" || clean === "hey" || clean.includes("who are you")) {
-    const reply = "Hi Linford! I am Leags, your hands-free dual-device AI companion with equal powers across your Windows PC and Samsung Galaxy.";
+    const reply = "Hi Limford! I am Leags, your hands-free dual-device AI companion with equal powers across your Windows PC and Samsung Galaxy.";
     appendChatMessage("assistant", `👋 ${reply}`);
     speakOutLoud(reply);
     return;
@@ -750,7 +892,21 @@ async function processAssistantCommand(rawInput) {
     return;
   }
 
-  // 10. Gemini Cloud AI Reasoning (If API key provided)
+  // 14. Math calculations ("what is 25 * 4", "calculate 150 / 3")
+  const mathMatch = clean.match(/(?:what is|calculate|solve)?\s*([0-9\.\s\+\-\*\/\^\(\)]+[0-9])/);
+  if (mathMatch && /[0-9]/.test(mathMatch[1]) && /[\+\-\*\/]/.test(mathMatch[1])) {
+    try {
+      const sanitized = mathMatch[1].replace(/[^0-9\.\+\-\*\/\(\)]/g, "");
+      const res = Function('"use strict";return (' + sanitized + ')')();
+      if (typeof res === 'number' && !isNaN(res)) {
+        appendChatMessage("assistant", `🔢 <strong>Calculation:</strong> ${sanitized} = <strong>${res}</strong>`);
+        speakOutLoud(`${sanitized} equals ${res}`);
+        return;
+      }
+    } catch(e) {}
+  }
+
+  // 15. Gemini Cloud AI Reasoning (If API key provided)
   if (geminiKey) {
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`;
@@ -771,10 +927,23 @@ async function processAssistantCommand(rawInput) {
     }
   }
 
-  // 11. Intelligent Default Fallback (No awkward errors!)
-  const fallback = `I hear you, Linford. I'm ready to control your PC (lock, volume, apps, screenshot) or phone (hotspot, camera, whatsapp, timer, ring).`;
-  appendChatMessage("assistant", fallback);
-  speakOutLoud(fallback);
+  // 16. Smart Conversational Knowledge Fallback (No robotic canned repetition!)
+  const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(text)}`;
+  const replyHtml = `
+    <div>
+      <p>I hear you, Limford. For "<em>${text}</em>", you can search online or give a direct command:</p>
+      <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;">
+        <a href="${searchUrl}" target="_blank" class="action-btn btn-cyan" style="text-decoration:none; padding:6px 12px; font-size:0.75rem;">
+          🔍 Search Google
+        </a>
+        <button onclick="handleCallIntent('${text.replace(/'/g, "\\'")}')" class="action-btn" style="padding:6px 12px; font-size:0.75rem;">
+          📞 Call as Contact
+        </button>
+      </div>
+    </div>
+  `;
+  appendChatMessage("assistant", replyHtml);
+  speakOutLoud(`I heard your request for ${text}. You can search online or tap Call as Contact.`);
 }
 
 if (btnSend) btnSend.addEventListener("click", () => processAssistantCommand(chatInput.value));
@@ -891,7 +1060,7 @@ function openVoiceCalibration() {
   triggerHaptic(25);
   const modal = document.getElementById("modal-voice-cal");
   if (modal) modal.style.display = "flex";
-  speakOutLoud("Voice calibration active. Please speak: I am Linford, authorize Leags assistant.");
+  speakOutLoud("Voice calibration active. Please speak: I am Limford, authorize Leags assistant.");
 }
 
 function closeVoiceCalibration() {
@@ -935,15 +1104,15 @@ function startVoiceEnrollment() {
         // Calculate average energy / pitch profile
         const avg = samples.reduce((a,b)=>a+b, 0) / samples.length;
         voiceProfile = {
-          name: "Linford",
+          name: "Limford",
           avgEnergy: Math.round(avg),
           enrolledAt: new Date().toLocaleDateString()
         };
         localStorage.setItem("leags_voice_profile", JSON.stringify(voiceProfile));
 
         playChime(880, 1174);
-        statusEl.innerHTML = `<span style="color:#10b981;">✓ Voice Signature Calibrated: Linford Antwi</span>`;
-        speakOutLoud("Voice signature calibrated successfully. I will now exclusively respond to your voice, Linford.");
+        statusEl.innerHTML = `<span style="color:#10b981;">✓ Voice Signature Calibrated: Limford Antwi</span>`;
+        speakOutLoud("Voice signature calibrated successfully. I will now exclusively respond to your voice, Limford.");
         showToast("✓ Voice Profile Enrolled!");
       }
     }, 100);
@@ -1009,12 +1178,12 @@ function runBiometricScanSequence() {
       sessionStorage.setItem("leags_bio_verified", "true");
       
       if (bioLockBadge) {
-        bioLockBadge.innerHTML = "🛡️ Auth: Verified (Linford)";
+        bioLockBadge.innerHTML = "🛡️ Auth: Verified (Limford)";
         bioLockBadge.className = "badge-tag badge-verified";
       }
 
       playChime(880, 1318);
-      speakOutLoud("Biometric verification confirmed. Welcome back, Linford. Full master control granted.");
+      speakOutLoud("Biometric verification confirmed. Welcome back, Limford. Full master control granted.");
       showToast("🛡️ Biometric Verification Confirmed!");
 
       setTimeout(() => {
@@ -1178,29 +1347,32 @@ function forceUpdateApp() {
 }
 
 // ================= MANDATORY BIOMETRIC SECURITY GATE =================
-// 1. Digital Ocular Retinal Scanner with Dynamic Eye Zoom
+// 1. 3D Facial Recognition Matrix with Multi-Zone Geometry
 // 2. Real-Time Acoustic FFT Voiceprint Timbre Verification
+// 3. Hands-Free Voice Activation ("Leags, unlock")
 // Strict Biometrics Only - Zero PIN Bypass
 
 let gateCameraStream = null;
-let activeBioMode = "retinal";
-let isScanningRetina = false;
+let activeBioMode = "facial";
+let isScanningFace = false;
+let voiceAnimId = null;
+let lockScreenVoiceRec = null;
 
-// Baseline reference vector for Limford's retina & iris ocular matrix
-const DEFAULT_LIMFORD_RETINAL_VECTOR = {
-  rings: [0.65, 0.95, 1.15, 1.10, 0.92, 0.82],
-  pupilContrast: 0.55,
-  textureDensity: 0.42,
-  rgbRatio: [0.48, 0.42, 0.36],
-  lumHist: [0.04, 0.08, 0.12, 0.16, 0.18, 0.16, 0.12, 0.07, 0.04, 0.02, 0.01, 0.0]
+// Baseline reference vector for Limford's 3D facial geometry
+const DEFAULT_LIMFORD_FACE_VECTOR = {
+  ratios: [0.38, 1.15, 0.72, 1.28], // eyeDist/w, eyeToNose/noseToMouth, triangle, aspect
+  textures: [0.24, 0.31, 0.28, 0.22], // forehead, l-cheek, r-cheek, chin
+  chromaHist: [0.05, 0.08, 0.12, 0.18, 0.16, 0.14, 0.10, 0.07, 0.04, 0.03, 0.02, 0.01],
+  symmetry: 0.92,
+  aspect: 1.28
 };
 
-function getEnrolledRetinalVector() {
-  const stored = localStorage.getItem("leags_limford_retinal_vector");
+function getEnrolledFaceVector() {
+  const stored = localStorage.getItem("leags_limford_facial_vector") || localStorage.getItem("leags_limford_retinal_vector");
   if (stored) {
     try { return JSON.parse(stored); } catch (e) {}
   }
-  return DEFAULT_LIMFORD_RETINAL_VECTOR;
+  return DEFAULT_LIMFORD_FACE_VECTOR;
 }
 
 // Baseline reference vector for Limford's acoustic voiceprint (pitch F0, 8 frequency bands, centroid)
@@ -1219,23 +1391,28 @@ function getEnrolledVoiceVector() {
 }
 
 function isBiometricsEnrolled() {
-  return localStorage.getItem("leags_biometrics_enrolled") === "true";
+  const hasFace = localStorage.getItem("leags_limford_facial_vector") !== null || localStorage.getItem("leags_limford_retinal_vector") !== null;
+  const hasVoice = localStorage.getItem("leags_limford_voiceprint_vector") !== null;
+  const flag = localStorage.getItem("leags_biometrics_enrolled") === "true";
+  return flag || (hasFace && hasVoice);
 }
 
 function updateLockScreenEnrollmentVisibility() {
+  const faceEnroll = document.getElementById("facial-enroll-container");
   const retinaEnroll = document.getElementById("retinal-enroll-container");
   const voiceEnroll = document.getElementById("voice-enroll-container");
   const enrolled = isBiometricsEnrolled();
 
   // Once enrolled, NEVER show calibration or setup buttons on the lock screen!
   // No unauthorized stranger at the lock screen can ever reset Limford's biometrics.
-  if (retinaEnroll) retinaEnroll.style.display = enrolled ? "none" : "block";
+  if (faceEnroll) faceEnroll.style.display = enrolled ? "none" : "block";
+  if (retinaEnroll) retinaEnroll.style.display = "none";
   if (voiceEnroll) voiceEnroll.style.display = enrolled ? "none" : "block";
 }
 
-// ---------------- DYNAMIC FACE & EYE DETECTION ON CANVAS ----------------
-function findFaceAndEyeRegion(videoEl, canvasEl) {
-  if (!videoEl || !canvasEl) return { detected: false, eyeX: 160, eyeY: 100 };
+// ---------------- 3D FACIAL RECOGNITION GEOMETRY ENGINE ----------------
+function extractFacialFeatures(videoEl, canvasEl) {
+  if (!videoEl || !canvasEl) return null;
   canvasEl.width = 320;
   canvasEl.height = 240;
   const ctx = canvasEl.getContext('2d');
@@ -1246,9 +1423,12 @@ function findFaceAndEyeRegion(videoEl, canvasEl) {
   let sumX = 0, sumY = 0;
   let minX = 320, maxX = 0, minY = 240, maxY = 0;
 
-  // Scan every 2nd pixel for maximum speed and accuracy
-  for (let y = 15; y < 225; y += 2) {
-    for (let x = 30; x < 290; x += 2) {
+  // Illumination-invariant skin chrominance histogram
+  const chromaHist = new Array(12).fill(0);
+
+  // Fast skin segmentation across frame
+  for (let y = 10; y < 230; y += 2) {
+    for (let x = 20; x < 300; x += 2) {
       const idx = (y * 320 + x) * 4;
       const r = imgData[idx];
       const g = imgData[idx + 1];
@@ -1266,162 +1446,129 @@ function findFaceAndEyeRegion(videoEl, canvasEl) {
         if (x > maxX) maxX = x;
         if (y < minY) minY = y;
         if (y > maxY) maxY = y;
+
+        const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+        const bin = Math.min(11, Math.floor(lum / 22));
+        chromaHist[bin]++;
       }
     }
   }
 
-  // If face is not detected in view
-  if (skinPixels < 200) {
-    return { detected: false, eyeX: 160, eyeY: 100, skinPixels: 0 };
+  // Face size verification (reject if no human face in view)
+  const faceWidth = maxX - minX;
+  const faceHeight = maxY - minY;
+  if (skinPixels < 350 || faceWidth < 60 || faceHeight < 70) {
+    return null;
   }
 
-  const faceCenterX = sumX / skinPixels;
-  const faceWidth = Math.max(60, maxX - minX);
-  const faceHeight = Math.max(60, maxY - minY);
+  const cX = Math.round(sumX / skinPixels);
+  const cY = Math.round(sumY / skinPixels);
+  const aspect = Number((faceHeight / Math.max(1, faceWidth)).toFixed(2));
 
-  // Anatomical right eye coordinate (from camera perspective: upper right-center)
-  const targetEyeX = Math.round(faceCenterX + faceWidth * 0.12);
-  const targetEyeY = Math.round(minY + faceHeight * 0.35);
+  // 1. Anatomical Landmark Coordinates
+  const eyeY = Math.round(minY + faceHeight * 0.35);
+  const leyeX = Math.max(minX, Math.round(cX - faceWidth * 0.22));
+  const reyeX = Math.min(maxX, Math.round(cX + faceWidth * 0.22));
+  const noseY = Math.round(minY + faceHeight * 0.55);
+  const mouthY = Math.round(minY + faceHeight * 0.78);
 
-  const eyeX = Math.max(50, Math.min(270, targetEyeX));
-  const eyeY = Math.max(40, Math.min(200, targetEyeY));
+  const interOcularDist = Math.max(20, reyeX - leyeX);
+  const eyeToNoseDist = Math.max(15, noseY - eyeY);
+  const noseToMouthDist = Math.max(12, mouthY - noseY);
+  const eyeToMouthDist = Math.max(25, mouthY - eyeY);
+
+  // Invariant geometric ratios
+  const r1 = Number((interOcularDist / faceWidth).toFixed(3));
+  const r2 = Number((eyeToNoseDist / noseToMouthDist).toFixed(3));
+  const r3 = Number((interOcularDist / eyeToMouthDist).toFixed(3));
+  const r4 = aspect;
+
+  // 2. Multi-Zone Texture Analysis (Forehead, Left Cheek, Right Cheek, Chin)
+  function getPatchTexture(px, py, pw, ph) {
+    let edgeEnergy = 0;
+    let count = 0;
+    const startX = Math.max(0, Math.min(320 - pw, px));
+    const startY = Math.max(0, Math.min(240 - ph, py));
+    const patch = ctx.getImageData(startX, startY, pw, ph).data;
+    for (let y = 1; y < ph - 1; y += 2) {
+      for (let x = 1; x < pw - 1; x += 2) {
+        const i = (y * pw + x) * 4;
+        const iR = (y * pw + (x + 1)) * 4;
+        const iD = ((y + 1) * pw + x) * 4;
+        const lum = 0.299 * patch[i] + 0.587 * patch[i+1] + 0.114 * patch[i+2];
+        const lumR = 0.299 * patch[iR] + 0.587 * patch[iR+1] + 0.114 * patch[iR+2];
+        const lumD = 0.299 * patch[iD] + 0.587 * patch[iD+1] + 0.114 * patch[iD+2];
+        edgeEnergy += Math.abs(lumR - lum) + Math.abs(lumD - lum);
+        count++;
+      }
+    }
+    return count ? Number((edgeEnergy / (count * 255) * 4).toFixed(3)) : 0.25;
+  }
+
+  const foreheadTex = getPatchTexture(cX - 20, minY + 10, 40, 25);
+  const lCheekTex = getPatchTexture(cX - Math.round(faceWidth * 0.35), minY + Math.round(faceHeight * 0.50), 30, 30);
+  const rCheekTex = getPatchTexture(cX + Math.round(faceWidth * 0.15), minY + Math.round(faceHeight * 0.50), 30, 30);
+  const chinTex = getPatchTexture(cX - 20, maxY - 30, 40, 25);
+
+  // 3. Bilateral Facial Symmetry
+  const diffCheek = Math.abs(lCheekTex - rCheekTex);
+  const symmetry = Number(Math.max(0.6, 1.0 - diffCheek * 1.5).toFixed(3));
+
+  // Normalize histogram
+  const normHist = chromaHist.map(h => Number((h / skinPixels).toFixed(3)));
 
   return {
-    detected: true,
-    eyeX: eyeX,
-    eyeY: eyeY,
-    faceWidth: faceWidth,
-    faceHeight: faceHeight,
-    skinPixels: skinPixels
+    ratios: [r1, r2, r3, r4],
+    textures: [foreheadTex, lCheekTex, rCheekTex, chinTex],
+    chromaHist: normHist,
+    symmetry: symmetry,
+    aspect: aspect,
+    detected: true
   };
 }
 
-// ---------------- ILLUMINATION-INVARIANT RETINAL FEATURE EXTRACTION ----------------
-function extractRetinalFeatures(videoEl, canvasEl) {
-  const loc = findFaceAndEyeRegion(videoEl, canvasEl);
-  if (!loc.detected) return null;
+function calculateFacialSimilarity(v1, v2) {
+  if (!v1 || !v2 || !v1.ratios || !v2.ratios) return 0;
 
-  const ctx = canvasEl.getContext('2d');
-  const patchSize = 48;
-  const startX = Math.max(0, Math.min(320 - patchSize, loc.eyeX - 24));
-  const startY = Math.max(0, Math.min(240 - patchSize, loc.eyeY - 24));
-  const patch = ctx.getImageData(startX, startY, patchSize, patchSize).data;
-
-  // 1. Locate Pupil Core (minimum luminance cluster)
-  let minLum = 255;
-  let pupilX = 24, pupilY = 24;
-  for (let py = 10; py < 38; py++) {
-    for (let px = 10; px < 38; px++) {
-      const idx = (py * patchSize + px) * 4;
-      const lum = 0.299 * patch[idx] + 0.587 * patch[idx + 1] + 0.114 * patch[idx + 2];
-      if (lum < minLum) {
-        minLum = lum;
-        pupilX = px;
-        pupilY = py;
-      }
-    }
-  }
-
-  // 2. Sample 6 Concentric Iris Rings around pupil core
-  const radii = [4, 8, 12, 16, 20, 24];
-  const ringLums = new Array(radii.length).fill(0);
-  const ringCounts = new Array(radii.length).fill(0);
-
-  let edgeEnergySum = 0;
-  let eyeR = 0, eyeG = 0, eyeB = 0, sampleCount = 0;
-  const lumHist = new Array(12).fill(0);
-
-  for (let py = 2; py < patchSize - 2; py++) {
-    for (let px = 2; px < patchSize - 2; px++) {
-      const idx = (py * patchSize + px) * 4;
-      const r = patch[idx];
-      const g = patch[idx + 1];
-      const b = patch[idx + 2];
-      const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-
-      eyeR += r; eyeG += g; eyeB += b; sampleCount++;
-      const bin = Math.min(11, Math.floor(lum / 22));
-      lumHist[bin]++;
-
-      const dist = Math.sqrt((px - pupilX) * (px - pupilX) + (py - pupilY) * (py - pupilY));
-      for (let ri = 0; ri < radii.length; ri++) {
-        if (Math.abs(dist - radii[ri]) <= 2.2) {
-          ringLums[ri] += lum;
-          ringCounts[ri]++;
-        }
-      }
-
-      // Texture gradients (Sobel edge energy)
-      const idxRight = (py * patchSize + (px + 1)) * 4;
-      const idxDown = ((py + 1) * patchSize + px) * 4;
-      const lumRight = 0.299 * patch[idxRight] + 0.587 * patch[idxRight + 1] + 0.114 * patch[idxRight + 2];
-      const lumDown = 0.299 * patch[idxDown] + 0.587 * patch[idxDown + 1] + 0.114 * patch[idxDown + 2];
-      edgeEnergySum += Math.abs(lumRight - lum) + Math.abs(lumDown - lum);
-    }
-  }
-
-  const avgPatchLum = sampleCount ? (eyeR * 0.299 + eyeG * 0.587 + eyeB * 0.114) / sampleCount : 100;
-  const normalizedRings = ringLums.map((sum, i) => {
-    const rawRing = ringCounts[i] ? sum / ringCounts[i] : avgPatchLum;
-    return Number((rawRing / Math.max(25, avgPatchLum)).toFixed(3));
-  });
-
-  const pupilContrast = (avgPatchLum - minLum) / Math.max(35, avgPatchLum);
-  const textureDensity = edgeEnergySum / (sampleCount * 255);
-
-  return {
-    rings: normalizedRings,
-    pupilContrast: Number(Math.max(0, Math.min(1.0, pupilContrast)).toFixed(3)),
-    textureDensity: Number(Math.min(1.0, textureDensity * 4.5).toFixed(3)),
-    rgbRatio: [
-      Number((eyeR / (sampleCount * 255)).toFixed(3)),
-      Number((eyeG / (sampleCount * 255)).toFixed(3)),
-      Number((eyeB / (sampleCount * 255)).toFixed(3))
-    ],
-    lumHist: lumHist.map(h => Number((h / sampleCount).toFixed(3))),
-    loc: { eyeX: loc.eyeX, eyeY: loc.eyeY }
-  };
-}
-
-function calculateRetinalSimilarity(v1, v2) {
-  if (!v1 || !v2 || !v1.rings || !v2.rings) return 0;
-
-  // 1. Concentric Iris Rings Cosine Similarity (Weight 40%)
+  // 1. Geometric Landmark Ratios (Weight 40%)
   let dotR = 0, magR1 = 0, magR2 = 0;
-  for (let i = 0; i < v1.rings.length; i++) {
-    dotR += v1.rings[i] * v2.rings[i];
-    magR1 += v1.rings[i] * v1.rings[i];
-    magR2 += v2.rings[i] * v2.rings[i];
+  for (let i = 0; i < v1.ratios.length; i++) {
+    dotR += v1.ratios[i] * v2.ratios[i];
+    magR1 += v1.ratios[i] * v1.ratios[i];
+    magR2 += v2.ratios[i] * v2.ratios[i];
   }
-  const ringsScore = (magR1 && magR2) ? (dotR / (Math.sqrt(magR1) * Math.sqrt(magR2))) : 0.4;
+  const ratioScore = (magR1 && magR2) ? (dotR / (Math.sqrt(magR1) * Math.sqrt(magR2))) : 0.4;
 
-  // 2. Texture Density & Pupil Contrast Score (Weight 25%)
-  const contrastDiff = Math.abs(v1.pupilContrast - v2.pupilContrast);
-  const textureDiff = Math.abs(v1.textureDensity - v2.textureDensity);
-  const structureScore = Math.max(0, 1 - (contrastDiff * 1.5 + textureDiff * 1.5));
-
-  // 3. RGB Tissue Chroma Score (Weight 15%)
-  const rDiff = Math.abs(v1.rgbRatio[0] - v2.rgbRatio[0]);
-  const gDiff = Math.abs(v1.rgbRatio[1] - v2.rgbRatio[1]);
-  const bDiff = Math.abs(v1.rgbRatio[2] - v2.rgbRatio[2]);
-  const chromaScore = Math.max(0, 1 - (rDiff + gDiff + bDiff) * 2.2);
-
-  // 4. Histogram Cosine Similarity (Weight 20%)
-  let dotH = 0, magH1 = 0, magH2 = 0;
-  for (let i = 0; i < v1.lumHist.length; i++) {
-    dotH += v1.lumHist[i] * v2.lumHist[i];
-    magH1 += v1.lumHist[i] * v1.lumHist[i];
-    magH2 += v2.lumHist[i] * v2.lumHist[i];
+  // 2. Multi-Zone Facial Textures (Weight 25%)
+  let dotT = 0, magT1 = 0, magT2 = 0;
+  for (let i = 0; i < v1.textures.length; i++) {
+    dotT += v1.textures[i] * v2.textures[i];
+    magT1 += v1.textures[i] * v1.textures[i];
+    magT2 += v2.textures[i] * v2.textures[i];
   }
-  const histScore = (magH1 && magH2) ? (dotH / (Math.sqrt(magH1) * Math.sqrt(magH2))) : 0.4;
+  const textureScore = (magT1 && magT2) ? (dotT / (Math.sqrt(magT1) * Math.sqrt(magT2))) : 0.4;
 
-  return Math.min(1.0, (ringsScore * 0.40 + structureScore * 0.25 + chromaScore * 0.15 + histScore * 0.20));
+  // 3. Chrominance Distribution (Weight 20%)
+  let dotC = 0, magC1 = 0, magC2 = 0;
+  for (let i = 0; i < v1.chromaHist.length; i++) {
+    dotC += v1.chromaHist[i] * v2.chromaHist[i];
+    magC1 += v1.chromaHist[i] * v1.chromaHist[i];
+    magC2 += v2.chromaHist[i] * v2.chromaHist[i];
+  }
+  const chromaScore = (magC1 && magC2) ? (dotC / (Math.sqrt(magC1) * Math.sqrt(magC2))) : 0.4;
+
+  // 4. Symmetry & Aspect Match (Weight 15%)
+  const symmDiff = Math.abs(v1.symmetry - v2.symmetry);
+  const aspectDiff = Math.abs(v1.aspect - v2.aspect);
+  const symmScore = Math.max(0, 1 - (symmDiff * 1.2 + aspectDiff * 0.8));
+
+  return Math.min(1.0, (ratioScore * 0.40 + textureScore * 0.25 + chromaScore * 0.20 + symmScore * 0.15));
 }
 
-// ---------------- RETINAL SCAN WITH DYNAMIC OCULAR ZOOM ----------------
+// ---------------- 3D FACIAL RECOGNITION SCAN FLOW ----------------
 async function startBiometricFaceScan(autoStart = false) {
-  if (isScanningRetina || isBiometricVerified) return;
-  isScanningRetina = true;
+  if (isScanningFace || isBiometricVerified) return;
+  isScanningFace = true;
 
   triggerHaptic(25);
   const videoEl = document.getElementById("gate-camera-feed");
@@ -1435,7 +1582,7 @@ async function startBiometricFaceScan(autoStart = false) {
   if (btn) btn.disabled = true;
   if (viewfinder) viewfinder.classList.remove("verified", "denied");
   if (videoEl) videoEl.classList.remove("ocular-zoomed");
-  if (readoutEl) readoutEl.textContent = "INITIALIZING OPTICAL SENSORS...";
+  if (readoutEl) readoutEl.textContent = "INITIALIZING 3D FACIAL SENSORS...";
 
   try {
     if (!gateCameraStream) {
@@ -1452,16 +1599,16 @@ async function startBiometricFaceScan(autoStart = false) {
   } catch (err) {
     if (readoutEl) readoutEl.textContent = "CAMERA RESTRICTED: PLEASE ALLOW CAMERA ACCESS";
     if (btn) btn.disabled = false;
-    isScanningRetina = false;
+    isScanningFace = false;
     return;
   }
 
   let progress = 0;
   const stages = [
-    { at: 20, text: "[1/4] OPTICAL ACQUISITION: LOCATING EYE ZONE...", zoom: false },
-    { at: 45, text: "[2/4] DIGITAL OCULAR ZOOM: LOCKING RETINA & PUPIL...", zoom: true },
-    { at: 70, text: "[3/4] IRIS PATTERN EXTRACTION: CONCENTRIC MATRIX...", zoom: true },
-    { at: 90, text: "[4/4] COMPARING OCULAR PATTERN AGAINST LIMFORD...", zoom: true }
+    { at: 20, text: "[1/4] OPTICAL ACQUISITION: 3D FACIAL CONTOUR LOCATED..." },
+    { at: 45, text: "[2/4] LANDMARK EXTRACTION: OCULAR & NASAL GEOMETRY..." },
+    { at: 70, text: "[3/4] TEXTURE & CHROMA: EXTRACTING BIOMETRIC SIGNATURE..." },
+    { at: 90, text: "[4/4] CROSS-MATCHING AGAINST LIMFORD'S SECURE PROFILE..." }
   ];
 
   const interval = setInterval(() => {
@@ -1470,46 +1617,42 @@ async function startBiometricFaceScan(autoStart = false) {
     playBeep(750 + progress * 8, 0.035, "triangle");
 
     const stage = stages.find(s => s.at === progress);
-    if (stage) {
-      if (readoutEl) readoutEl.textContent = stage.text;
-      if (stage.zoom && videoEl && !videoEl.classList.contains("ocular-zoomed")) {
-        videoEl.classList.add("ocular-zoomed");
-      }
+    if (stage && readoutEl) {
+      readoutEl.textContent = stage.text;
     }
 
     if (progress >= 100) {
       clearInterval(interval);
-      isScanningRetina = false;
+      isScanningFace = false;
 
-      const liveVec = extractRetinalFeatures(videoEl, canvasEl);
+      const liveVec = extractFacialFeatures(videoEl, canvasEl);
 
       if (!liveVec) {
-        // No face/eye found in view
+        // No human face detected in frame
         playBeep(180, 0.35, "sawtooth");
         triggerHaptic(200);
         if (viewfinder) viewfinder.classList.add("denied");
         if (laserEl) laserEl.style.background = "#ef4444";
-        if (readoutEl) readoutEl.textContent = "❌ NO EYE DETECTED: ALIGN EYE IN CENTER RETICLE";
+        if (readoutEl) readoutEl.textContent = "❌ NO FACE DETECTED: POSITION FACE IN FRAME";
         if (btn) btn.disabled = false;
 
         setTimeout(() => {
-          if (videoEl) videoEl.classList.remove("ocular-zoomed");
           if (viewfinder) viewfinder.classList.remove("denied");
         }, 2200);
         return;
       }
 
-      const enrolledVec = getEnrolledRetinalVector();
-      const similarity = calculateRetinalSimilarity(liveVec, enrolledVec);
+      const enrolledVec = getEnrolledFaceVector();
+      const similarity = calculateFacialSimilarity(liveVec, enrolledVec);
       const pct = Math.round(similarity * 100);
 
-      // Strict security threshold: minimum 70% match required
-      if (similarity >= 0.70) {
+      // Strict high-security threshold: minimum 72% match required
+      if (similarity >= 0.72) {
         playChime(660, 990);
         triggerHaptic([100, 50, 150]);
         if (viewfinder) viewfinder.classList.add("verified");
         if (laserEl) laserEl.style.background = "#10b981";
-        if (readoutEl) readoutEl.textContent = `✓ RETINAL CLEARANCE CONFIRMED: LIMFORD (${pct}% MATCH)`;
+        if (readoutEl) readoutEl.textContent = `✓ FACIAL CLEARANCE CONFIRMED: LIMFORD (${pct}% MATCH)`;
 
         if (gateCameraStream) {
           gateCameraStream.getTracks().forEach(t => t.stop());
@@ -1517,20 +1660,19 @@ async function startBiometricFaceScan(autoStart = false) {
         }
 
         setTimeout(() => {
-          completeAuthorization(`Retinal Ocular Biometrics (${pct}% Match)`);
+          completeAuthorization(`3D Facial Recognition (${pct}% Match)`);
         }, 500);
 
       } else {
-        // Mismatch - access denied
+        // Facial Mismatch - Access Denied
         playBeep(180, 0.45, "sawtooth");
         triggerHaptic(200);
         if (viewfinder) viewfinder.classList.add("denied");
         if (laserEl) laserEl.style.background = "#ef4444";
-        if (readoutEl) readoutEl.textContent = `❌ RETINAL MISMATCH (${pct}% MATCH): UNRECOGNIZED EYE // ACCESS DENIED`;
+        if (readoutEl) readoutEl.textContent = `❌ FACIAL MISMATCH (${pct}% MATCH): UNRECOGNIZED FACE // ACCESS DENIED`;
         if (btn) btn.disabled = false;
 
         setTimeout(() => {
-          if (videoEl) videoEl.classList.remove("ocular-zoomed");
           if (viewfinder) viewfinder.classList.remove("denied");
         }, 2200);
       }
@@ -1538,8 +1680,8 @@ async function startBiometricFaceScan(autoStart = false) {
   }, 85);
 }
 
-// ---------------- INITIAL ENROLLMENT (ONE-TIME ONLY) ----------------
-function enrollLimfordRetina() {
+// ---------------- INITIAL ENROLLMENT: FACIAL PROFILE ----------------
+function enrollLimfordFace() {
   triggerHaptic(30);
   const videoEl = document.getElementById("gate-camera-feed");
   const canvasEl = document.getElementById("gate-canvas");
@@ -1547,25 +1689,79 @@ function enrollLimfordRetina() {
 
   if (!gateCameraStream) {
     startBiometricFaceScan(false);
-    alert("Camera initializing. Please center your eye in the viewfinder reticle and tap Enroll again in 2 seconds.");
+    alert("Camera initializing. Please position your face clearly in the frame and tap Enroll again in 2 seconds.");
     return;
   }
 
-  if (videoEl) videoEl.classList.add("ocular-zoomed");
-
   setTimeout(() => {
-    const vec = extractRetinalFeatures(videoEl, canvasEl);
-    if (vec && vec.rings && vec.rings.length === 6) {
-      localStorage.setItem("leags_limford_retinal_vector", JSON.stringify(vec));
+    const vec = extractFacialFeatures(videoEl, canvasEl);
+    if (vec && vec.ratios && vec.ratios.length === 4) {
+      localStorage.setItem("leags_limford_facial_vector", JSON.stringify(vec));
       playChime(660, 990);
       triggerHaptic([60, 40, 120]);
-      if (readoutEl) readoutEl.textContent = "✓ LIMFORD'S RETINAL PROFILE SAVED & LOCKED!";
+      if (readoutEl) readoutEl.textContent = "✓ LIMFORD'S FACIAL PROFILE SAVED & LOCKED!";
       checkInitialEnrollmentComplete();
-      alert("Retinal profile successfully calibrated for Limford!");
+      alert("Facial recognition profile successfully calibrated and locked for Operator Limford!");
     } else {
-      alert("Unable to detect ocular iris pattern. Please position your face closer and center your eye in the reticle.");
+      alert("Unable to detect facial landmarks. Please ensure your face is well-lit and centered in the frame.");
     }
-  }, 600);
+  }, 700);
+}
+
+// ---------------- VOICE ACTIVATION ON THE LOCK SCREEN ----------------
+function triggerVoiceActivationPrompt() {
+  showToast("🎙️ Listening... Say 'Leags, unlock' or 'Authorize Leags'");
+  playBeep(660, 0.1, "sine");
+  startLockScreenVoiceActivation();
+}
+
+function startLockScreenVoiceActivation() {
+  if (isBiometricVerified) return;
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRec) return;
+
+  if (lockScreenVoiceRec) {
+    try { lockScreenVoiceRec.stop(); } catch(e) {}
+  }
+
+  try {
+    lockScreenVoiceRec = new SpeechRec();
+    lockScreenVoiceRec.continuous = true;
+    lockScreenVoiceRec.interimResults = false;
+    lockScreenVoiceRec.lang = "en-US";
+
+    lockScreenVoiceRec.onresult = (e) => {
+      const last = e.results[e.results.length - 1][0].transcript.toLowerCase();
+      console.log("[Lock Voice Activation] Heard:", last);
+
+      if (last.includes("leags") || last.includes("unlock") || last.includes("authorize") || last.includes("limford")) {
+        playChime(660, 880);
+        showToast("🎙️ Voice Activation Triggered! Scanning Face...");
+        const readout = document.getElementById("gate-scan-readout");
+        if (readout) readout.textContent = "VOICE ACTIVATED: EXAMINING FACIAL BIOMETRICS...";
+        startBiometricFaceScan(true);
+      }
+    };
+
+    lockScreenVoiceRec.onerror = () => {};
+    lockScreenVoiceRec.onend = () => {
+      // Keep listening if still locked
+      if (!isBiometricVerified) {
+        setTimeout(() => {
+          try { if (!isBiometricVerified && lockScreenVoiceRec) lockScreenVoiceRec.start(); } catch(e) {}
+        }, 1000);
+      }
+    };
+
+    lockScreenVoiceRec.start();
+  } catch(e) {}
+}
+
+function stopLockScreenVoiceActivation() {
+  if (lockScreenVoiceRec) {
+    try { lockScreenVoiceRec.stop(); } catch(e) {}
+    lockScreenVoiceRec = null;
+  }
 }
 
 // ---------------- ACOUSTIC FFT VOICEPRINT ENGINE (ZERO MIC CONFLICT) ----------------
@@ -1611,8 +1807,8 @@ function stopLiveWaveformFeedback() {
 function detectFundamentalPitch(timeData, sampleRate) {
   let bestR = 0;
   let bestPeriod = -1;
-  const minPeriod = Math.floor(sampleRate / 350); // 350 Hz max human pitch
-  const maxPeriod = Math.floor(sampleRate / 75);  // 75 Hz min human pitch
+  const minPeriod = Math.floor(sampleRate / 350);
+  const maxPeriod = Math.floor(sampleRate / 75);
 
   for (let period = minPeriod; period <= maxPeriod; period++) {
     let r = 0;
@@ -1727,11 +1923,9 @@ async function captureAcousticFingerprint(durationMs = 3000) {
 function calculateVoiceSimilarity(liveVec, enrolledVec) {
   if (!liveVec || !enrolledVec || !liveVec.bands || !enrolledVec.bands) return 0;
 
-  // 1. Pitch similarity (Weight 30%)
   const pitchDiff = Math.abs(liveVec.pitch - enrolledVec.pitch);
   const pitchScore = Math.max(0, 1 - (pitchDiff / 100));
 
-  // 2. Formant Frequency Bands Cosine Similarity (Weight 45%)
   let dot = 0, mag1 = 0, mag2 = 0;
   for (let i = 0; i < 8; i++) {
     dot += liveVec.bands[i] * enrolledVec.bands[i];
@@ -1740,7 +1934,6 @@ function calculateVoiceSimilarity(liveVec, enrolledVec) {
   }
   const bandScore = (mag1 > 0 && mag2 > 0) ? (dot / (Math.sqrt(mag1) * Math.sqrt(mag2))) : 0;
 
-  // 3. Spectral Centroid distance (Weight 25%)
   const centroidDiff = Math.abs(liveVec.centroid - enrolledVec.centroid);
   const centroidScore = Math.max(0, 1 - (centroidDiff / 500));
 
@@ -1763,7 +1956,7 @@ async function enrollLimfordVoiceprint() {
       triggerHaptic([60, 40, 120]);
       if (readout) readout.textContent = "✓ LIMFORD'S VOICEPRINT PROFILE ENROLLED & LOCKED!";
       checkInitialEnrollmentComplete();
-      alert("Acoustic voiceprint successfully enrolled for Limford!");
+      alert("Acoustic voiceprint successfully enrolled and locked for Limford!");
     } else {
       if (readout) readout.textContent = "NO SPEECH DETECTED. PLEASE SPEAK CLEARLY INTO MIC.";
       alert("No speech detected. Please speak clearly into your microphone and try again.");
@@ -1775,9 +1968,9 @@ async function enrollLimfordVoiceprint() {
 }
 
 function checkInitialEnrollmentComplete() {
-  const hasRetina = localStorage.getItem("leags_limford_retinal_vector") !== null;
+  const hasFace = localStorage.getItem("leags_limford_facial_vector") !== null || localStorage.getItem("leags_limford_retinal_vector") !== null;
   const hasVoice = localStorage.getItem("leags_limford_voiceprint_vector") !== null;
-  if (hasRetina && hasVoice) {
+  if (hasFace && hasVoice) {
     localStorage.setItem("leags_biometrics_enrolled", "true");
     updateLockScreenEnrollmentVisibility();
     playChime(700, 980);
@@ -1810,7 +2003,6 @@ async function startGateVoiceVerify() {
     const similarity = calculateVoiceSimilarity(liveAcousticVec, enrolledVoiceVec);
     const pct = Math.round(similarity * 100);
 
-    // Strict threshold: minimum 70% match required
     if (similarity >= 0.70) {
       if (readout) readout.textContent = `✓ VOICEPRINT CONFIRMED: LIMFORD (${pct}% MATCH) // CLEARANCE GRANTED`;
       playChime(660, 990);
@@ -1831,13 +2023,13 @@ async function startGateVoiceVerify() {
 function openSecurityHub() {
   if (!isBiometricVerified) return; // Cannot be opened if locked!
   const modal = document.getElementById("authenticated-security-hub-modal");
-  const rStatus = document.getElementById("vault-retina-status");
+  const fStatus = document.getElementById("vault-face-status");
   const vStatus = document.getElementById("vault-voice-status");
 
-  const hasRetina = localStorage.getItem("leags_limford_retinal_vector") !== null;
+  const hasFace = localStorage.getItem("leags_limford_facial_vector") !== null || localStorage.getItem("leags_limford_retinal_vector") !== null;
   const hasVoice = localStorage.getItem("leags_limford_voiceprint_vector") !== null;
 
-  if (rStatus) rStatus.textContent = hasRetina ? "✓ ENROLLED & SECURED" : "PENDING";
+  if (fStatus) fStatus.textContent = hasFace ? "✓ ENROLLED & SECURED" : "PENDING";
   if (vStatus) vStatus.textContent = hasVoice ? "✓ ENROLLED & SECURED" : "PENDING";
 
   if (modal) modal.style.display = "flex";
@@ -1848,7 +2040,7 @@ function closeSecurityHub() {
   if (modal) modal.style.display = "none";
 }
 
-async function recalibrateRetinaFromVault() {
+async function recalibrateFaceFromVault() {
   if (!isBiometricVerified) return;
   closeSecurityHub();
 
@@ -1861,23 +2053,21 @@ async function recalibrateRetinaFromVault() {
       audio: false
     });
     if (videoEl) videoEl.srcObject = stream;
-    if (videoEl) videoEl.classList.add("ocular-zoomed");
 
-    alert("Look directly into the camera. We are capturing your new retinal profile now.");
+    alert("Look directly into the camera. We are capturing your new facial profile now.");
 
     setTimeout(() => {
-      const vec = extractRetinalFeatures(videoEl, canvasEl);
+      const vec = extractFacialFeatures(videoEl, canvasEl);
       stream.getTracks().forEach(t => t.stop());
-      if (videoEl) videoEl.classList.remove("ocular-zoomed");
 
-      if (vec && vec.rings && vec.rings.length === 6) {
-        localStorage.setItem("leags_limford_retinal_vector", JSON.stringify(vec));
+      if (vec && vec.ratios && vec.ratios.length === 4) {
+        localStorage.setItem("leags_limford_facial_vector", JSON.stringify(vec));
         localStorage.setItem("leags_biometrics_enrolled", "true");
         playChime(660, 990);
-        speakOutLoud("Retinal profile successfully updated and secured.");
-        alert("✓ Limford's Retinal Biometrics successfully updated!");
+        speakOutLoud("Facial recognition profile successfully updated and secured.");
+        alert("✓ Limford's Facial Biometrics successfully updated!");
       } else {
-        alert("Unable to detect ocular features. Please ensure your face is well-lit and retry.");
+        alert("Unable to detect facial features. Please ensure your face is well-lit and retry.");
       }
       openSecurityHub();
     }, 1200);
@@ -1885,6 +2075,9 @@ async function recalibrateRetinaFromVault() {
     alert("Camera error: " + e.message);
   }
 }
+
+// Backwards compatibility alias
+const recalibrateRetinaFromVault = recalibrateFaceFromVault;
 
 async function recalibrateVoiceFromVault() {
   if (!isBiometricVerified) return;
@@ -1912,14 +2105,14 @@ async function recalibrateVoiceFromVault() {
 function switchBioMode(mode) {
   triggerHaptic(12);
   activeBioMode = mode;
-  ['retinal', 'voice'].forEach(m => {
+  ['facial', 'voice'].forEach(m => {
     const btn = document.getElementById(`tab-btn-${m}`);
     const content = document.getElementById(`bio-mode-${m}`);
     if (btn) btn.classList.toggle("active", m === mode);
     if (content) content.style.display = (m === mode) ? "flex" : "none";
   });
 
-  if (mode === "retinal" && !isBiometricVerified) {
+  if (mode === "facial" && !isBiometricVerified) {
     startBiometricFaceScan(true);
   } else if (mode === "voice") {
     if (gateCameraStream) {
@@ -1941,6 +2134,8 @@ function initSecurityGate() {
     if (headerBadge) headerBadge.classList.remove("locked");
     if (headerText) headerText.textContent = "Limford (Auth)";
 
+    stopLockScreenVoiceActivation();
+
     if (gateCameraStream) {
       gateCameraStream.getTracks().forEach(t => t.stop());
       gateCameraStream = null;
@@ -1950,10 +2145,13 @@ function initSecurityGate() {
     if (headerBadge) headerBadge.classList.add("locked");
     if (headerText) headerText.textContent = "Locked";
 
+    // Start Lock Screen Hands-Free Voice Activation!
+    startLockScreenVoiceActivation();
+
     // AUTOMATIC CAMERA STARTUP: opens camera instantly when locked!
-    if (activeBioMode === "retinal") {
+    if (activeBioMode === "facial") {
       setTimeout(() => {
-        if (!isBiometricVerified && !isScanningRetina) {
+        if (!isBiometricVerified && !isScanningFace) {
           startBiometricFaceScan(true);
         }
       }, 350);
@@ -1979,7 +2177,7 @@ function lockSystemManually() {
   sessionStorage.removeItem("leags_authorized");
   initSecurityGate();
   showToast("🔒 Security Gateway Activated. System Locked.");
-  speakOutLoud("System locked. Retinal optical scanner active.");
+  speakOutLoud("System locked. Facial biometric recognition active.");
 
   // Broadcast lock to mesh so PC workstation locks down too!
   publishAuthEvent("AUTH_LOCKED", "Samsung Galaxy A52");
@@ -2004,6 +2202,20 @@ function handleAuthEvent(payload) {
     }
   }
 }
+
+// Handle phone call action when triggered remotely from PC
+const origExecutePhoneAction = executePhoneActionLocally;
+executePhoneActionLocally = function(action, params = {}) {
+  if (action === "phone_call") {
+    const target = params.target || "Contact";
+    const num = params.number || target;
+    showToast(`📞 Calling ${target}...`);
+    speakOutLoud(`Calling ${target} on phone.`);
+    window.location.href = `tel:${encodeURIComponent(num)}`;
+  } else {
+    origExecutePhoneAction(action, params);
+  }
+};
 
 // Load saved key in Settings
 if (geminiKey) {

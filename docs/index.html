@@ -1070,42 +1070,42 @@
     .cyber-bracket.bottom-left { bottom: 0; left: 0; border-width: 0 0 3px 3px; }
     .cyber-bracket.bottom-right { bottom: 0; right: 0; border-width: 0 3px 3px 0; }
 
-    .viewfinder-circle {
-      width: 150px;
-      height: 150px;
-      border-radius: 50%;
+    .viewfinder-face, .viewfinder-circle {
+      width: 175px;
+      height: 230px;
+      border-radius: 46px;
       position: relative;
       overflow: hidden;
       background: #020617;
-      border: 2px dashed rgba(6, 182, 212, 0.6);
-      box-shadow: 0 0 25px rgba(6, 182, 212, 0.35);
+      border: 2px dashed rgba(6, 182, 212, 0.65);
+      box-shadow: 0 0 32px rgba(6, 182, 212, 0.35);
       display: flex;
       align-items: center;
       justify-content: center;
       transition: all 0.4s ease;
     }
 
-    .viewfinder-circle.verified {
+    .viewfinder-face.verified, .viewfinder-circle.verified {
       border: 2px solid #10b981 !important;
-      box-shadow: 0 0 35px rgba(16, 185, 129, 0.6) !important;
+      box-shadow: 0 0 40px rgba(16, 185, 129, 0.65) !important;
     }
 
-    .viewfinder-circle.denied {
+    .viewfinder-face.denied, .viewfinder-circle.denied {
       border: 2px solid #ef4444 !important;
-      box-shadow: 0 0 35px rgba(239, 68, 68, 0.6) !important;
+      box-shadow: 0 0 40px rgba(239, 68, 68, 0.65) !important;
     }
 
-    .viewfinder-circle video {
+    .viewfinder-face video, .viewfinder-circle video {
       width: 100%;
       height: 100%;
       object-fit: cover;
-      transform-origin: 52% 40%;
-      transition: transform 0.9s cubic-bezier(0.2, 0.8, 0.2, 1), filter 0.6s ease;
+      transform-origin: 50% 45%;
+      transition: transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1), filter 0.5s ease;
     }
 
-    .viewfinder-circle video.ocular-zoomed {
-      transform: scale(3.5) translate(-6%, -12%);
-      filter: contrast(1.2) brightness(1.06) saturate(1.1);
+    .viewfinder-face video.ocular-zoomed, .viewfinder-circle video.ocular-zoomed {
+      transform: scale(1.35);
+      filter: contrast(1.15) brightness(1.05);
     }
 
     .laser-scanner {
@@ -1120,15 +1120,14 @@
     }
 
     @keyframes laserSweep {
-      0% { top: 5%; }
-      100% { top: 95%; }
+      0% { top: 6%; }
+      100% { top: 94%; }
     }
 
-    .retinal-crosshair {
+    /* 3D Facial Landmark Tracking Matrix HUD */
+    .facial-hud-matrix {
       position: absolute;
-      top: 50%; left: 50%;
-      width: 100%; height: 100%;
-      transform: translate(-50%, -50%);
+      inset: 0;
       pointer-events: none;
       display: flex;
       align-items: center;
@@ -1136,71 +1135,82 @@
       z-index: 4;
     }
 
-    .retinal-axis-h {
+    .face-box-overlay {
       position: absolute;
-      width: 100%;
-      height: 1px;
-      background: linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.6), transparent);
+      width: 130px;
+      height: 175px;
+      border: 1.5px dashed rgba(34, 211, 238, 0.55);
+      border-radius: 32px;
+      box-shadow: inset 0 0 16px rgba(6, 182, 212, 0.2);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-around;
+      transition: all 0.3s ease;
     }
 
-    .retinal-axis-v {
+    .face-eye-box {
       position: absolute;
-      height: 100%;
-      width: 1px;
-      background: linear-gradient(180deg, transparent, rgba(34, 211, 238, 0.6), transparent);
+      top: 42px;
+      width: 28px;
+      height: 22px;
+      border: 1.5px solid rgba(6, 182, 212, 0.75);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.65rem;
+      background: rgba(6, 182, 212, 0.1);
+      box-shadow: 0 0 8px rgba(6, 182, 212, 0.3);
     }
+    .face-eye-box.left { left: 20px; }
+    .face-eye-box.right { right: 20px; }
 
-    .retinal-pupil-dot {
-      width: 16px;
-      height: 16px;
+    .face-nose-target {
+      position: absolute;
+      top: 82px;
+      width: 8px;
+      height: 8px;
       border-radius: 50%;
-      border: 2px solid #22d3ee;
-      box-shadow: 0 0 12px #06b6d4, inset 0 0 6px #22d3ee;
-      animation: pupilPulse 1.2s infinite ease-in-out;
-      z-index: 5;
+      background: rgba(34, 211, 238, 0.85);
+      box-shadow: 0 0 10px #22d3ee;
     }
 
-    @keyframes pupilPulse {
-      0% { transform: scale(0.85); opacity: 0.7; }
-      50% { transform: scale(1.25); opacity: 1; }
-      100% { transform: scale(0.85); opacity: 0.7; }
-    }
-
-    .iris-target {
+    .face-mouth-bracket {
       position: absolute;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      width: 80px;
-      height: 80px;
-      pointer-events: none;
-      z-index: 3;
+      bottom: 32px;
+      width: 48px;
+      height: 14px;
+      border-bottom: 2px solid rgba(34, 211, 238, 0.75);
+      border-left: 1.5px solid rgba(34, 211, 238, 0.4);
+      border-right: 1.5px solid rgba(34, 211, 238, 0.4);
+      border-radius: 0 0 8px 8px;
     }
 
-    .iris-ring {
-      position: absolute;
-      top: 0; left: 0; right: 0; bottom: 0;
-      border-radius: 50%;
-      border: 1px solid rgba(6, 182, 212, 0.5);
+    .voice-activation-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(99, 102, 241, 0.16);
+      border: 1px solid rgba(99, 102, 241, 0.45);
+      color: #a5b4fc;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 6px 12px;
+      border-radius: 20px;
+      margin: 4px 0;
+      cursor: pointer;
     }
 
-    .iris-ring.ring-1 {
-      border: 1.5px dashed rgba(34, 211, 238, 0.8);
-      animation: rotateClockwise 8s infinite linear;
+    .call-action-card {
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid rgba(6, 182, 212, 0.4);
+      border-radius: 12px;
+      padding: 10px 14px;
+      margin-top: 8px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+      text-align: left;
     }
-
-    .iris-ring.ring-2 {
-      inset: 12px;
-      border: 1px solid rgba(16, 185, 129, 0.6);
-    }
-
-    .iris-ring.ring-3 {
-      inset: 22px;
-      border: 1px dashed rgba(245, 158, 11, 0.7);
-      animation: rotateClockwise 12s infinite linear reverse;
-    }
-
-    @keyframes rotateClockwise {
-      from { transform: rotate(0deg); }
       to { transform: rotate(360deg); }
     }
 
@@ -1403,58 +1413,61 @@
 
       <!-- Mode Selector Tabs (Strict Biometrics Only - No PIN) -->
       <div class="bio-mode-tabs">
-        <button class="bio-tab-btn active" id="tab-btn-retinal" onclick="switchBioMode('retinal')">
-          <span>👁️ Retinal & Ocular Scan</span>
+        <button class="bio-tab-btn active" id="tab-btn-facial" onclick="switchBioMode('facial')">
+          <span>👤 Facial Recognition</span>
         </button>
         <button class="bio-tab-btn" id="tab-btn-voice" onclick="switchBioMode('voice')">
           <span>🎙️ Voiceprint Acoustic</span>
         </button>
       </div>
 
-      <!-- Mode 1: Retinal & Ocular Scan View with Dynamic Eye Zoom -->
-      <div class="bio-mode-content" id="bio-mode-retinal">
-        <div class="bio-scanner-frame">
+      <!-- Mode 1: 3D Facial Recognition View with Voice Activation -->
+      <div class="bio-mode-content" id="bio-mode-facial">
+        <div class="bio-scanner-frame" style="width: 210px; height: 260px;">
           <div class="cyber-bracket top-left"></div>
           <div class="cyber-bracket top-right"></div>
           <div class="cyber-bracket bottom-left"></div>
           <div class="cyber-bracket bottom-right"></div>
 
-          <div class="viewfinder-circle" id="gate-viewfinder">
+          <div class="viewfinder-face" id="gate-viewfinder">
             <video id="gate-camera-feed" autoplay playsinline muted></video>
             <div class="laser-scanner" id="gate-laser"></div>
 
-            <!-- Retinal HUD Targeting Matrix -->
-            <div class="retinal-crosshair" id="gate-retinal-hud">
-              <div class="retinal-axis-h"></div>
-              <div class="retinal-axis-v"></div>
-              <div class="retinal-pupil-dot" id="gate-pupil-dot"></div>
-            </div>
-
-            <div class="iris-target" id="gate-iris">
-              <div class="iris-ring ring-1"></div>
-              <div class="iris-ring ring-2"></div>
-              <div class="iris-ring ring-3"></div>
+            <!-- 3D Facial HUD Targeting Matrix -->
+            <div class="facial-hud-matrix" id="gate-facial-hud">
+              <div class="face-box-overlay" id="gate-face-box">
+                <div class="face-eye-box left" id="gate-eye-left">👁️</div>
+                <div class="face-eye-box right" id="gate-eye-right">👁️</div>
+                <div class="face-nose-target" id="gate-nose-target"></div>
+                <div class="face-mouth-bracket" id="gate-mouth-target"></div>
+              </div>
             </div>
           </div>
+        </div>
+
+        <div class="voice-activation-pill" id="gate-voice-active-indicator" onclick="triggerVoiceActivationPrompt()">
+          <span class="pulse-dot"></span>
+          <span>🎙️ Voice Active: Say <strong>"Leags, unlock"</strong> or tap Verify</span>
         </div>
 
         <div class="bio-progress-container">
           <div class="bio-progress-track">
             <div class="bio-progress-fill" id="gate-scan-fill"></div>
           </div>
-          <div class="bio-scan-readout" id="gate-scan-readout">STANDBY: POSITION EYE IN RETICLE</div>
+          <div class="bio-scan-readout" id="gate-scan-readout">STANDBY: POSITION FACE IN FRAME</div>
         </div>
 
         <div class="bio-gate-actions" style="width: 100%; display: flex; flex-direction: column; gap: 8px;">
           <button class="btn-bio-verify" id="btn-start-face-scan" onclick="startBiometricFaceScan(false)">
-            ⚡ VERIFY RETINAL & OCULAR PROFILE
+            ⚡ VERIFY FACIAL IDENTITY (VOICE-ACTIVATED)
           </button>
           <!-- One-time Initial Setup only: completely hidden once enrolled so no stranger can reset! -->
-          <div id="retinal-enroll-container" style="display: none; width: 100%;">
-            <button type="button" class="btn-bio-enroll" onclick="enrollLimfordRetina()" style="width: 100%; background: rgba(6, 182, 212, 0.15); border: 1px solid rgba(6,182,212,0.4); color: #67e8f9; font-size: 0.76rem; font-weight: 700; padding: 8px 12px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
-              👁️ Initial Setup: Enroll Limford's Retina
+          <div id="facial-enroll-container" style="display: none; width: 100%;">
+            <button type="button" class="btn-bio-enroll" onclick="enrollLimfordFace()" style="width: 100%; background: rgba(6, 182, 212, 0.15); border: 1px solid rgba(6,182,212,0.4); color: #67e8f9; font-size: 0.76rem; font-weight: 700; padding: 8px 12px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+              👤 Initial Setup: Enroll Limford's Face Profile
             </button>
           </div>
+          <div id="retinal-enroll-container" style="display: none;"></div>
         </div>
         <canvas id="gate-canvas" width="320" height="240" style="display: none;"></canvas>
       </div>
@@ -1511,11 +1524,11 @@
 
       <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 10px; text-align: left;">
         <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-size: 0.8rem; color: #cbd5e1;">👁️ Retinal Matrix</span>
-          <span id="vault-retina-status" class="sec-status-badge">ENROLLED</span>
+          <span style="font-size: 0.8rem; color: #cbd5e1;">👤 3D Facial Recognition Matrix</span>
+          <span id="vault-face-status" class="sec-status-badge">ENROLLED</span>
         </div>
-        <button onclick="recalibrateRetinaFromVault()" style="background: rgba(6, 182, 212, 0.2); border: 1px solid rgba(6, 182, 212, 0.4); color: #67e8f9; font-size: 0.76rem; font-weight: 700; padding: 8px 12px; border-radius: 8px; cursor: pointer;">
-          👁️ Retake Retinal Biometrics
+        <button onclick="recalibrateFaceFromVault()" style="background: rgba(6, 182, 212, 0.2); border: 1px solid rgba(6, 182, 212, 0.4); color: #67e8f9; font-size: 0.76rem; font-weight: 700; padding: 8px 12px; border-radius: 8px; cursor: pointer;">
+          👤 Retake Facial Recognition Biometrics
         </button>
 
         <div style="height: 1px; background: rgba(255,255,255,0.06); margin: 4px 0;"></div>
@@ -1770,9 +1783,11 @@
     <section class="tab-pane" id="tab-chat" style="display: none;">
       <div id="chat-messages" class="chat-messages">
         <div class="chat-bubble assistant">
-          👋 <strong>Hi Linford! I am Leags.</strong><br>
+          👋 <strong>Hi Limford! I am Leags.</strong><br>
           Hands-free active dual-device assistant. Speak or type:
           <ul style="margin-left: 20px; margin-top: 6px;">
+            <li><em>"Call yaw motor"</em> or <em>"Call [contact/number]"</em></li>
+            <li><em>"WhatsApp yaw motor [message]"</em> or <em>"Text [name]"</em></li>
             <li><em>"Set timer for 5 minutes"</em> or <em>"Countdown 30 seconds"</em></li>
             <li><em>"Turn on hotspot"</em> or <em>"Ring my phone"</em></li>
             <li><em>"Lock my PC"</em>, <em>"Mute"</em>, or <em>"Open Spotify"</em></li>
@@ -1995,7 +2010,7 @@
       <h3 style="color: #06b6d4; font-size: 1.1rem;">VOICEPRINT CALIBRATION</h3>
       <p style="font-size: 0.80rem; color: #cbd5e1; line-height: 1.4;">
         Speak clearly into your microphone:<br>
-        <strong style="color: #67e8f9;">"I am Linford, authorize Leags assistant."</strong>
+        <strong style="color: #67e8f9;">"I am Limford, authorize Leags assistant."</strong>
       </p>
 
       <button class="action-btn btn-cyan" style="padding: 12px 24px; font-size: 0.95rem; margin-top: 10px;" onclick="startVoiceEnrollment()">
