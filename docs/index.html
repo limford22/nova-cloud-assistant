@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#070a13">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>Nova AI Hub</title>
+  <title>Leags AI Hub</title>
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" href="icon.png">
   <style>
@@ -17,6 +17,8 @@
       --border-active: rgba(99, 102, 241, 0.45);
       --primary: #6366f1;
       --primary-glow: rgba(99, 102, 241, 0.4);
+      --cyan: #06b6d4;
+      --cyan-glow: rgba(6, 182, 212, 0.4);
       --success: #10b981;
       --warning: #f59e0b;
       --danger: #ef4444;
@@ -43,13 +45,13 @@
       user-select: none;
     }
 
-    /* Header */
+    /* Top Glass Header */
     header {
       background: rgba(11, 16, 28, 0.96);
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
       border-bottom: 1px solid var(--border-subtle);
-      padding: 12px 18px;
+      padding: 10px 16px;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -66,14 +68,14 @@
       width: 38px;
       height: 38px;
       border-radius: 12px;
-      background: linear-gradient(135deg, #6366f1, #a855f7);
+      background: linear-gradient(135deg, #06b6d4, #6366f1);
       display: flex;
       align-items: center;
       justify-content: center;
       font-weight: 800;
       color: #fff;
       font-size: 1.15rem;
-      box-shadow: 0 0 16px var(--primary-glow);
+      box-shadow: 0 0 16px var(--cyan-glow);
     }
 
     .brand-text h2 {
@@ -83,7 +85,7 @@
     }
 
     .brand-text .subtext {
-      font-size: 0.70rem;
+      font-size: 0.68rem;
       color: var(--text-muted);
       display: flex;
       align-items: center;
@@ -100,15 +102,21 @@
       border-radius: 6px;
     }
 
+    .header-badges {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
     .status-pill {
       display: flex;
       align-items: center;
-      gap: 7px;
+      gap: 6px;
       background: rgba(255, 255, 255, 0.05);
       border: 1px solid var(--border-subtle);
-      padding: 6px 14px;
+      padding: 5px 12px;
       border-radius: 20px;
-      font-size: 0.76rem;
+      font-size: 0.74rem;
       font-weight: 700;
     }
 
@@ -132,20 +140,31 @@
       100% { transform: scale(1); opacity: 1; }
     }
 
+    .badge-phone {
+      display: none;
+      background: rgba(6, 182, 212, 0.15);
+      border: 1px solid rgba(6, 182, 212, 0.3);
+      color: #67e8f9;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 5px 10px;
+      border-radius: 20px;
+    }
+
     /* Content Area & Tabs */
     .content-area {
       flex: 1;
       overflow-y: auto;
       position: relative;
       scroll-behavior: smooth;
-      padding-bottom: 84px; /* Space for bottom nav */
+      padding-bottom: 84px;
     }
 
     .tab-pane {
       display: none;
-      padding: 16px;
+      padding: 14px;
       flex-direction: column;
-      gap: 14px;
+      gap: 12px;
       animation: fadeIn 0.2s ease-out;
     }
 
@@ -158,14 +177,14 @@
       to { opacity: 1; transform: translateY(0); }
     }
 
-    /* Glassmorphism Cards */
+    /* Glass Cards */
     .card {
       background: var(--bg-card);
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
       border: 1px solid var(--border-subtle);
       border-radius: 20px;
-      padding: 16px;
+      padding: 15px;
       display: flex;
       flex-direction: column;
       gap: 12px;
@@ -179,7 +198,7 @@
     }
 
     .card-header h3 {
-      font-size: 0.85rem;
+      font-size: 0.82rem;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.05em;
@@ -199,11 +218,17 @@
     .badge-tag {
       font-size: 0.68rem;
       font-weight: 600;
-      color: var(--primary);
-      background: rgba(99, 102, 241, 0.12);
+      color: var(--cyan);
+      background: rgba(6, 182, 212, 0.12);
       padding: 2px 8px;
       border-radius: 10px;
-      border: 1px solid rgba(99, 102, 241, 0.25);
+      border: 1px solid rgba(6, 182, 212, 0.25);
+    }
+
+    .badge-verified {
+      color: var(--success) !important;
+      background: rgba(16, 185, 129, 0.15) !important;
+      border-color: rgba(16, 185, 129, 0.3) !important;
     }
 
     .card-desc {
@@ -257,7 +282,7 @@
 
     .progress-bar {
       height: 100%;
-      background: var(--primary);
+      background: var(--cyan);
       border-radius: 4px;
       transition: width 0.4s ease, background 0.3s;
     }
@@ -267,7 +292,7 @@
     .bar-orange { background: #f59e0b; }
     .bar-danger { background: #ef4444; }
 
-    /* Tactile Button Grids */
+    /* Button Grids */
     .button-grid {
       display: grid;
       gap: 8px;
@@ -283,7 +308,7 @@
       color: var(--text-main);
       padding: 12px 10px;
       border-radius: 14px;
-      font-size: 0.82rem;
+      font-size: 0.80rem;
       font-weight: 600;
       display: flex;
       flex-direction: column;
@@ -306,6 +331,14 @@
       justify-content: center;
     }
 
+    .btn-cyan {
+      background: #0891b2;
+      border-color: #06b6d4;
+      box-shadow: 0 4px 14px var(--cyan-glow);
+      flex-direction: row;
+      justify-content: center;
+    }
+
     .btn-danger-soft {
       color: #f87171;
       background: rgba(239, 68, 68, 0.12);
@@ -318,12 +351,18 @@
       border-color: rgba(245, 158, 11, 0.25);
     }
 
+    .btn-cyan-soft {
+      color: #67e8f9;
+      background: rgba(6, 182, 212, 0.12);
+      border-color: rgba(6, 182, 212, 0.25);
+    }
+
     /* Media Controls */
     .media-controls {
       display: flex;
       align-items: center;
       justify-content: space-around;
-      padding: 6px 0;
+      padding: 4px 0;
     }
 
     .media-btn {
@@ -342,17 +381,15 @@
     }
 
     .media-btn.play-btn {
-      width: 62px;
-      height: 62px;
+      width: 60px;
+      height: 60px;
       background: var(--primary);
       border-color: #4f46e5;
       box-shadow: 0 4px 18px var(--primary-glow);
       font-size: 1.5rem;
     }
 
-    .media-btn:active {
-      transform: scale(0.92);
-    }
+    .media-btn:active { transform: scale(0.92); }
 
     .volume-slider-row {
       display: flex;
@@ -375,9 +412,9 @@
       width: 22px;
       height: 22px;
       border-radius: 50%;
-      background: var(--primary);
+      background: var(--cyan);
       cursor: pointer;
-      box-shadow: 0 0 10px var(--primary-glow);
+      box-shadow: 0 0 10px var(--cyan-glow);
     }
 
     /* Routines */
@@ -397,7 +434,7 @@
 
     .routine-btn:active {
       transform: scale(0.96);
-      border-color: var(--primary);
+      border-color: var(--cyan);
     }
 
     .routine-icon { font-size: 1.3rem; margin-bottom: 2px; }
@@ -437,9 +474,9 @@
 
     .app-item:active .app-icon-wrap {
       transform: scale(0.90);
-      background: var(--primary);
-      border-color: #4f46e5;
-      box-shadow: 0 0 14px var(--primary-glow);
+      background: var(--cyan);
+      border-color: #06b6d4;
+      box-shadow: 0 0 14px var(--cyan-glow);
     }
 
     .app-item span {
@@ -480,6 +517,35 @@
       font-size: 0.72rem;
     }
 
+    /* Timer Widget Card */
+    .timer-card {
+      background: rgba(99, 102, 241, 0.15);
+      border: 1px solid rgba(99, 102, 241, 0.35);
+      border-radius: 16px;
+      padding: 12px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      animation: fadeIn 0.25s ease-out;
+    }
+
+    .timer-countdown {
+      font-size: 1.8rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: #fff;
+    }
+
+    .btn-cancel-timer {
+      background: rgba(239, 68, 68, 0.18);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #f87171;
+      padding: 3px 8px;
+      border-radius: 8px;
+      font-size: 0.72rem;
+      cursor: pointer;
+    }
+
     /* Chat View */
     #tab-chat {
       padding: 0;
@@ -513,7 +579,7 @@
 
     .chat-bubble.user {
       align-self: flex-end;
-      background: var(--primary);
+      background: linear-gradient(135deg, #0891b2, #6366f1);
       color: #fff;
       border-bottom-right-radius: 4px;
     }
@@ -561,8 +627,8 @@
     }
 
     .btn-circle.btn-send {
-      background: var(--primary);
-      border-color: #4f46e5;
+      background: var(--cyan);
+      border-color: #06b6d4;
     }
 
     .btn-circle.listening {
@@ -576,7 +642,7 @@
       100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
     }
 
-    /* Tools Inputs & Outputs */
+    /* Tools Inputs */
     textarea, input[type="text"], input[type="password"] {
       background: rgba(0, 0, 0, 0.35);
       border: 1px solid var(--border-subtle);
@@ -637,54 +703,6 @@
       display: none;
     }
 
-    /* Fullscreen Modal Lightbox */
-    .modal-lightbox {
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0, 0, 0, 0.95);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      z-index: 500;
-      padding: 10px;
-    }
-
-    .modal-lightbox img {
-      max-width: 100%;
-      max-height: 90vh;
-      object-fit: contain;
-      border-radius: 8px;
-    }
-
-    .modal-close {
-      position: absolute;
-      top: 20px;
-      right: 20px;
-      background: rgba(255, 255, 255, 0.2);
-      border: none;
-      color: #fff;
-      font-size: 1.5rem;
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-      cursor: pointer;
-    }
-
-    /* Settings */
-    .diag-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 0.82rem;
-      padding: 8px 0;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    }
-
-    .diag-val {
-      color: var(--text-muted);
-      font-size: 0.78rem;
-    }
-
     /* Switch */
     .switch {
       position: relative;
@@ -716,8 +734,100 @@
       transition: 0.3s;
     }
 
-    input:checked + .slider-round { background-color: var(--success); }
+    input:checked + .slider-round { background-color: var(--cyan); }
     input:checked + .slider-round:before { transform: translateX(20px); }
+
+    /* Modals & Cyberpunk Biometrics */
+    .modal-backdrop {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.92);
+      backdrop-filter: blur(12px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 500;
+      padding: 16px;
+    }
+
+    .bio-scanner-card {
+      background: #090e17;
+      border: 1px solid var(--cyan);
+      box-shadow: 0 0 30px var(--cyan-glow);
+      border-radius: 24px;
+      width: 100%;
+      max-width: 380px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      text-align: center;
+      position: relative;
+    }
+
+    .bio-viewfinder {
+      width: 200px;
+      height: 200px;
+      border-radius: 50%;
+      border: 2px dashed var(--cyan);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 20px rgba(6, 182, 212, 0.3);
+    }
+
+    .bio-viewfinder video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .bio-scan-line {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: #22d3ee;
+      box-shadow: 0 0 12px #22d3ee;
+      animation: scanLaser 1.5s infinite alternate ease-in-out;
+    }
+
+    @keyframes scanLaser {
+      0% { top: 5%; }
+      100% { top: 95%; }
+    }
+
+    /* Screen Torch Overlay */
+    #torch-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: #ffffff;
+      z-index: 1000;
+      display: none;
+    }
+
+    /* Fullscreen Siren Modal */
+    #modal-siren {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(239, 68, 68, 0.95);
+      z-index: 600;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      animation: flashRed 0.6s infinite alternate;
+    }
+
+    @keyframes flashRed {
+      from { background: rgba(239, 68, 68, 0.95); }
+      to { background: rgba(185, 28, 28, 0.98); }
+    }
 
     /* Bottom Floating Nav */
     .bottom-nav {
@@ -750,7 +860,7 @@
     }
 
     .nav-item.active {
-      color: var(--primary);
+      color: var(--cyan);
     }
 
     .nav-item.active .nav-icon {
@@ -767,7 +877,7 @@
       left: 50%;
       transform: translateX(-50%) translateY(-20px);
       background: rgba(15, 23, 42, 0.95);
-      border: 1px solid var(--primary);
+      border: 1px solid var(--cyan);
       color: #fff;
       padding: 10px 20px;
       border-radius: 20px;
@@ -796,17 +906,18 @@
   <!-- Top Glass Header -->
   <header>
     <div class="brand">
-      <div class="brand-avatar">N</div>
+      <div class="brand-avatar">L</div>
       <div class="brand-text">
-        <h2>Nova Hub</h2>
+        <h2>Leags Hub</h2>
         <span class="subtext">
-          <span>Cloud &bull; PC Mesh</span>
+          <span>Dual-Device Mesh</span>
           <span class="specs-badge" id="pc-specs-badge">Intel i7 &bull; 16GB</span>
         </span>
       </div>
     </div>
     
     <div class="header-badges">
+      <span class="badge-phone" id="phone-battery-badge">📱 Galaxy</span>
       <div class="status-pill" id="pc-status-pill">
         <span class="status-dot" id="pc-status-dot"></span>
         <span id="pc-status-text">PC: Offline</span>
@@ -817,13 +928,13 @@
   <!-- Main View Container (Tab Content) -->
   <main class="content-area">
 
-    <!-- ================= TAB 1: REMOTE DESK ================= -->
+    <!-- ================= TAB 1: REMOTE DESK & CONTROLS ================= -->
     <section class="tab-pane active" id="tab-remote">
       
       <!-- Telemetry Dashboard Card -->
       <div class="card telemetry-card">
         <div class="card-header">
-          <h3>Hardware Telemetry</h3>
+          <h3>Workstation Telemetry</h3>
           <span class="badge-live" id="live-indicator">LIVE</span>
         </div>
         <div class="metrics-grid">
@@ -854,10 +965,45 @@
         </div>
       </div>
 
-      <!-- Power & Workstation Security -->
+      <!-- EQUAL POWERS: Mobile Phone Actions Deck -->
       <div class="card">
         <div class="card-header">
-          <h3>Power &amp; Workstation</h3>
+          <h3>📱 Phone Powers (Samsung A52)</h3>
+          <span class="badge-tag">Equal Powers</span>
+        </div>
+        <div class="button-grid grid-3">
+          <button class="action-btn btn-cyan-soft" onclick="executePhoneActionLocally('hotspot')">
+            <span class="btn-icon">📶</span>
+            <span class="btn-text">Hotspot</span>
+          </button>
+          <button class="action-btn" onclick="executePhoneActionLocally('phone_camera')">
+            <span class="btn-icon">📷</span>
+            <span class="btn-text">Camera</span>
+          </button>
+          <button class="action-btn" onclick="executePhoneActionLocally('phone_whatsapp')">
+            <span class="btn-icon">💬</span>
+            <span class="btn-text">WhatsApp</span>
+          </button>
+          <button class="action-btn btn-warning-soft" onclick="executePhoneActionLocally('ring_phone')">
+            <span class="btn-icon">🚨</span>
+            <span class="btn-text">Ring Phone</span>
+          </button>
+          <button class="action-btn" onclick="executePhoneActionLocally('phone_torch')">
+            <span class="btn-icon">💡</span>
+            <span class="btn-text">Torch</span>
+          </button>
+          <button class="action-btn" onclick="executePhoneActionLocally('phone_vibrate')">
+            <span class="btn-icon">📳</span>
+            <span class="btn-text">Vibrate</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- EQUAL POWERS: PC Workstation Security -->
+      <div class="card">
+        <div class="card-header">
+          <h3>💻 PC Powers (Windows 11)</h3>
+          <span class="badge-tag">Workstation</span>
         </div>
         <div class="button-grid grid-4">
           <button class="action-btn btn-danger-soft" onclick="confirmAction('lock', 'Lock PC Workstation?')">
@@ -868,28 +1014,28 @@
             <span class="btn-icon">💤</span>
             <span class="btn-text">Sleep</span>
           </button>
-          <button class="action-btn" onclick="sendAction('screens_off')">
+          <button class="action-btn" onclick="sendPCAction('screens_off')">
             <span class="btn-icon">💡</span>
-            <span class="btn-text">Display Off</span>
+            <span class="btn-text">Screen Off</span>
           </button>
-          <button class="action-btn" onclick="sendAction('clean')">
+          <button class="action-btn" onclick="sendPCAction('clean')">
             <span class="btn-icon">🗑️</span>
             <span class="btn-text">Clean Trash</span>
           </button>
         </div>
       </div>
 
-      <!-- Media & Audio Master -->
+      <!-- Master Audio & Media Deck -->
       <div class="card">
         <div class="card-header">
           <h3>Media &amp; Master Audio</h3>
           <span class="badge-tag" id="volume-level-label">50%</span>
         </div>
         <div class="media-controls">
-          <button class="media-btn" onclick="sendAction('media', {action: 'prev'})">⏮️</button>
-          <button class="media-btn play-btn" onclick="sendAction('media', {action: 'play_pause'})">⏯️</button>
-          <button class="media-btn" onclick="sendAction('media', {action: 'next'})">⏭️</button>
-          <button class="media-btn" onclick="sendAction('volume', {action: 'mute'})" id="mute-btn">🔇</button>
+          <button class="media-btn" onclick="sendPCAction('media', {action: 'prev'})">⏮️</button>
+          <button class="media-btn play-btn" onclick="sendPCAction('media', {action: 'play_pause'})">⏯️</button>
+          <button class="media-btn" onclick="sendPCAction('media', {action: 'next'})">⏭️</button>
+          <button class="media-btn" onclick="sendPCAction('volume', {action: 'mute'})" id="mute-btn">🔇</button>
         </div>
         <div class="volume-slider-row">
           <span>🔈</span>
@@ -901,7 +1047,7 @@
       <!-- Smart Routines -->
       <div class="card">
         <div class="card-header">
-          <h3>One-Tap Routines</h3>
+          <h3>Smart Routines</h3>
         </div>
         <div class="button-grid grid-3">
           <button class="routine-btn" onclick="runRoutine('night')">
@@ -922,41 +1068,41 @@
         </div>
       </div>
 
-      <!-- Application Quick Deck -->
+      <!-- PC App Quick Deck -->
       <div class="card">
         <div class="card-header">
           <h3>Launch PC Applications</h3>
         </div>
         <div class="app-deck-grid">
-          <button class="app-item" onclick="sendAction('app', {app_name: 'chrome'})">
+          <button class="app-item" onclick="sendPCAction('app', {app_name: 'chrome'})">
             <div class="app-icon-wrap">🌐</div>
             <span>Chrome</span>
           </button>
-          <button class="app-item" onclick="sendAction('app', {app_name: 'spotify'})">
+          <button class="app-item" onclick="sendPCAction('app', {app_name: 'spotify'})">
             <div class="app-icon-wrap">🎵</div>
             <span>Spotify</span>
           </button>
-          <button class="app-item" onclick="sendAction('app', {app_name: 'code'})">
+          <button class="app-item" onclick="sendPCAction('app', {app_name: 'code'})">
             <div class="app-icon-wrap">💻</div>
             <span>VS Code</span>
           </button>
-          <button class="app-item" onclick="sendAction('app', {app_name: 'explorer'})">
+          <button class="app-item" onclick="sendPCAction('app', {app_name: 'explorer'})">
             <div class="app-icon-wrap">📁</div>
             <span>Explorer</span>
           </button>
-          <button class="app-item" onclick="sendAction('app', {app_name: 'terminal'})">
+          <button class="app-item" onclick="sendPCAction('app', {app_name: 'terminal'})">
             <div class="app-icon-wrap">⚡</div>
             <span>Terminal</span>
           </button>
-          <button class="app-item" onclick="sendAction('app', {app_name: 'taskmgr'})">
+          <button class="app-item" onclick="sendPCAction('app', {app_name: 'taskmgr'})">
             <div class="app-icon-wrap">📊</div>
             <span>Task Mgr</span>
           </button>
-          <button class="app-item" onclick="sendAction('app', {app_name: 'calc'})">
+          <button class="app-item" onclick="sendPCAction('app', {app_name: 'calc'})">
             <div class="app-icon-wrap">🔢</div>
             <span>Calc</span>
           </button>
-          <button class="app-item" onclick="sendAction('app', {app_name: 'notepad'})">
+          <button class="app-item" onclick="sendPCAction('app', {app_name: 'notepad'})">
             <div class="app-icon-wrap">📝</div>
             <span>Notepad</span>
           </button>
@@ -980,15 +1126,21 @@
     <section class="tab-pane" id="tab-chat" style="display: none;">
       <div id="chat-messages" class="chat-messages">
         <div class="chat-bubble assistant">
-          👋 <strong>Hi Linford! I am Nova.</strong><br>
-          Connected 24/7 in the cloud. You can talk to me via voice or text to answer questions, brainstorm, or execute remote PC actions like "Lock my PC", "Mute audio", or "Open Spotify".
+          👋 <strong>Hi Linford! I am Leags.</strong><br>
+          Hands-free active dual-device assistant. Speak or type:
+          <ul style="margin-left: 20px; margin-top: 6px;">
+            <li><em>"Set timer for 5 minutes"</em> or <em>"Countdown 30 seconds"</em></li>
+            <li><em>"Turn on hotspot"</em> or <em>"Ring my phone"</em></li>
+            <li><em>"Lock my PC"</em>, <em>"Mute"</em>, or <em>"Open Spotify"</em></li>
+            <li><em>"What is my battery status?"</em></li>
+          </ul>
         </div>
       </div>
 
       <!-- Chat Input Area -->
       <div class="chat-input-bar">
         <button class="btn-circle btn-mic" id="btn-mic" title="Voice Input">🎙️</button>
-        <input type="text" id="chat-input" placeholder="Ask Nova or speak..." autocomplete="off">
+        <input type="text" id="chat-input" placeholder="Say 'Leags' or ask anything..." autocomplete="off">
         <button class="btn-circle btn-send" id="btn-send">➤</button>
       </div>
     </section>
@@ -1005,7 +1157,7 @@
         <p class="card-desc">Push text directly into Windows PC clipboard or fetch PC clipboard contents.</p>
         <textarea id="clipboard-input" rows="3" placeholder="Paste link or text to send to PC clipboard..."></textarea>
         <div class="button-grid grid-2" style="margin-top: 10px;">
-          <button class="action-btn btn-primary" onclick="sendClipboardToPC()">
+          <button class="action-btn btn-cyan" onclick="sendClipboardToPC()">
             <span>📋 Push to PC Clipboard</span>
           </button>
           <button class="action-btn" onclick="fetchPCClipboard()">
@@ -1021,7 +1173,7 @@
           <span class="badge-tag">Desktop View</span>
         </div>
         <p class="card-desc">Snap a remote screenshot of your PC's active desktop.</p>
-        <button class="action-btn btn-primary" style="width: 100%; margin-bottom: 12px;" onclick="requestScreenshot()">
+        <button class="action-btn btn-cyan" style="width: 100%; margin-bottom: 12px;" onclick="requestScreenshot()">
           📸 Snap Desktop Screenshot
         </button>
         <div id="screenshot-preview-container" class="screenshot-box" style="display: none;" onclick="openScreenshotModal()">
@@ -1036,19 +1188,19 @@
           <h3>Quick Desktop Note</h3>
         </div>
         <input type="text" id="note-input" placeholder="Enter note snippet...">
-        <button class="action-btn btn-primary" style="width: 100%; margin-top: 10px;" onclick="saveDesktopNote()">
+        <button class="action-btn btn-cyan" style="width: 100%; margin-top: 10px;" onclick="saveDesktopNote()">
           💾 Save to Desktop/Assistant_Notes.md
         </button>
       </div>
 
-      <!-- Remote File Search & Recent Files -->
+      <!-- Remote File Search -->
       <div class="card">
         <div class="card-header">
           <h3>Search PC Files</h3>
         </div>
         <div class="search-row">
           <input type="text" id="file-search-input" placeholder="Search filename (e.g. pdf, budget, notes)...">
-          <button class="action-btn btn-primary" onclick="searchPCFiles()">🔍</button>
+          <button class="action-btn btn-cyan" onclick="searchPCFiles()">🔍</button>
         </div>
         <div style="display:flex; justify-content: flex-end; margin-top: 6px;">
           <button class="action-btn" style="padding: 4px 10px; font-size: 0.72rem; flex-direction: row;" onclick="fetchRecentDesktopFiles()">📁 Recent Desktop Files</button>
@@ -1064,41 +1216,51 @@
         </div>
         <div class="search-row">
           <input type="text" id="ps-input" placeholder="PowerShell command (e.g. ipconfig, dir, hostname)...">
-          <button class="action-btn btn-primary" onclick="runCustomPS()">⚡ Run</button>
+          <button class="action-btn btn-cyan" onclick="runCustomPS()">⚡ Run</button>
         </div>
         <div id="powershell-output" class="terminal-out" style="margin-top: 10px;"></div>
       </div>
 
     </section>
 
-    <!-- ================= TAB 4: SETTINGS ================= -->
+    <!-- ================= TAB 4: SETTINGS & BIOMETRICS ================= -->
     <section class="tab-pane" id="tab-settings" style="display: none;">
+      
+      <!-- Biometric Security & Access Control -->
       <div class="card">
         <div class="card-header">
-          <h3>Cloud Intelligence (Gemini)</h3>
+          <h3>Biometric Security &amp; Access</h3>
+          <span class="badge-tag" id="bio-lock-badge">🛡️ Auth: Unverified</span>
         </div>
-        <p class="card-desc">Enter your free Gemini API key to enable direct conversational reasoning in the browser:</p>
-        <input type="password" id="gemini-key-input" placeholder="AIzaSy...">
-        <button class="action-btn btn-primary" style="width: 100%; margin-top: 10px;" onclick="saveGeminiKey()">
-          💾 Save API Key
-        </button>
+        <p class="card-desc">Lock and protect Leags master controls using retinal/facial scanning and personalized voiceprint calibration:</p>
+        <div class="button-grid grid-2" style="margin-top: 4px;">
+          <button class="action-btn btn-cyan" onclick="openBiometricScanner()">
+            <span>👁️ Retinal / Face Scan</span>
+          </button>
+          <button class="action-btn" onclick="openVoiceCalibration()">
+            <span>🎙️ Calibrate Voice Signature</span>
+          </button>
+        </div>
       </div>
 
+      <!-- Voice & Hands-Free Settings -->
       <div class="card">
         <div class="card-header">
-          <h3>Connection Diagnostics</h3>
+          <h3>Hands-Free &amp; Voice Settings</h3>
         </div>
         <div class="diag-item">
-          <span>Cloud Mesh Protocol</span>
-          <span class="diag-val" style="color: #10b981;">HTTPS / SSE Mesh (Active)</span>
+          <span>Hands-Free Wake Word ("Leags")</span>
+          <label class="switch">
+            <input type="checkbox" id="handsfree-toggle" checked>
+            <span class="slider-round"></span>
+          </label>
         </div>
         <div class="diag-item">
-          <span>Private Channel</span>
-          <span class="diag-val">nova_limford22</span>
-        </div>
-        <div class="diag-item">
-          <span>Hosting Provider</span>
-          <span class="diag-val">GitHub Pages CDN</span>
+          <span>Spoken Replies (TTS)</span>
+          <label class="switch">
+            <input type="checkbox" id="voice-reply-toggle" checked>
+            <span class="slider-round"></span>
+          </label>
         </div>
         <div class="diag-item">
           <span>Haptic Vibrations</span>
@@ -1109,26 +1271,113 @@
         </div>
       </div>
 
+      <!-- Cloud Intelligence -->
+      <div class="card">
+        <div class="card-header">
+          <h3>Cloud Intelligence (Gemini)</h3>
+        </div>
+        <p class="card-desc">Enter your Gemini API key for advanced conversational knowledge beyond local reflex commands:</p>
+        <input type="password" id="gemini-key-input" placeholder="AIzaSy...">
+        <button class="action-btn btn-cyan" style="width: 100%; margin-top: 10px;" onclick="saveGeminiKey()">
+          💾 Save API Key
+        </button>
+      </div>
+
+      <!-- Diagnostics & Cache -->
+      <div class="card">
+        <div class="card-header">
+          <h3>Connection Diagnostics</h3>
+        </div>
+        <div class="diag-item">
+          <span>Mesh Relay</span>
+          <span class="diag-val" style="color: #10b981;">ntfy.sh (Direct HTTPS/SSE)</span>
+        </div>
+        <div class="diag-item">
+          <span>Private Channel</span>
+          <span class="diag-val">leags_limford22</span>
+        </div>
+        <div class="diag-item">
+          <span>Dual-Device Sync</span>
+          <span class="diag-val" style="color: #06b6d4;">Bidirectional Active</span>
+        </div>
+      </div>
+
       <div class="card">
         <div class="card-header">
           <h3>App Maintenance</h3>
         </div>
-        <p class="card-desc">If the app interface looks outdated on your phone, force clear the cache and reload:</p>
+        <p class="card-desc">Force clear the cache to ensure all latest Leags features and wake words are active:</p>
         <button class="action-btn btn-warning-soft" style="width: 100%; flex-direction: row; justify-content: center; gap: 8px;" onclick="forceUpdateApp()">
           🔄 Force Refresh &amp; Update App
         </button>
       </div>
+
     </section>
 
   </main>
 
-  <!-- Fullscreen Modal Lightbox for Screenshots -->
-  <div id="modal-lightbox" class="modal-lightbox" onclick="closeScreenshotModal()">
-    <button class="modal-close" onclick="closeScreenshotModal()">&times;</button>
-    <img id="modal-img" src="" alt="Full Desktop Screenshot">
+  <!-- ================= MODALS ================= -->
+
+  <!-- Fullscreen Lightbox for Screenshots -->
+  <div id="modal-lightbox" class="modal-backdrop" onclick="closeScreenshotModal()">
+    <button style="position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.2); border: none; color: #fff; font-size: 1.5rem; width: 44px; height: 44px; border-radius: 50%; cursor: pointer;" onclick="closeScreenshotModal()">&times;</button>
+    <img id="modal-img" src="" alt="Full Desktop Screenshot" style="max-width: 100%; max-height: 90vh; object-fit: contain; border-radius: 8px;">
   </div>
 
-  <!-- Bottom Navigation Bar (Samsung One UI Style) -->
+  <!-- Cyberpunk Biometric Face / Retinal Scan Modal -->
+  <div id="modal-bio-scan" class="modal-backdrop">
+    <div class="bio-scanner-card">
+      <h3 style="color: #06b6d4; font-size: 1.1rem; letter-spacing: 0.05em;">BIOMETRIC RECOGNITION</h3>
+      <p style="font-size: 0.76rem; color: #94a3b8;">Position face in viewfinder for optical &amp; retinal verification</p>
+      
+      <div class="bio-viewfinder">
+        <video id="bio-video" autoplay playsinline muted></video>
+        <div class="bio-scan-line"></div>
+      </div>
+
+      <div class="progress-track" style="width: 80%; height: 8px;">
+        <div class="progress-bar" id="bio-scan-progress" style="width: 0%; background: #06b6d4;"></div>
+      </div>
+
+      <div id="bio-scan-status" style="font-size: 0.78rem; font-weight: 700; color: #22d3ee;">INITIALIZING...</div>
+
+      <button class="action-btn btn-danger-soft" style="padding: 6px 16px; margin-top: 6px;" onclick="closeBiometricScanner()">Abort Scan</button>
+    </div>
+  </div>
+
+  <!-- Voice Calibration Modal -->
+  <div id="modal-voice-cal" class="modal-backdrop">
+    <div class="bio-scanner-card">
+      <h3 style="color: #06b6d4; font-size: 1.1rem;">VOICEPRINT CALIBRATION</h3>
+      <p style="font-size: 0.80rem; color: #cbd5e1; line-height: 1.4;">
+        Speak clearly into your microphone:<br>
+        <strong style="color: #67e8f9;">"I am Linford, authorize Leags assistant."</strong>
+      </p>
+
+      <button class="action-btn btn-cyan" style="padding: 12px 24px; font-size: 0.95rem; margin-top: 10px;" onclick="startVoiceEnrollment()">
+        🎙️ Begin Calibration
+      </button>
+
+      <div id="voice-cal-status" style="font-size: 0.78rem; color: #94a3b8; margin-top: 10px;">Ready to examine voice frequencies</div>
+
+      <button class="action-btn" style="padding: 6px 16px; margin-top: 8px;" onclick="closeVoiceCalibration()">Close</button>
+    </div>
+  </div>
+
+  <!-- Screen Torch White Overlay -->
+  <div id="torch-overlay" onclick="toggleScreenTorch()"></div>
+
+  <!-- Siren Modal (Find My Phone) -->
+  <div id="modal-siren">
+    <div style="font-size: 5rem;">🚨</div>
+    <h2 style="font-size: 1.8rem; font-weight: 800; color: #fff;">PHONE LOCATOR ACTIVE</h2>
+    <p style="color: rgba(255,255,255,0.9); font-size: 1rem;">Ringing phone at maximum volume</p>
+    <button class="action-btn" style="background: #fff; color: #ef4444; font-size: 1.1rem; padding: 16px 36px; border-radius: 30px; font-weight: 800;" onclick="stopPhoneAlarmSiren()">
+      SILENCE ALARM
+    </button>
+  </div>
+
+  <!-- Bottom Navigation Bar -->
   <nav class="bottom-nav">
     <button class="nav-item active" data-tab="tab-remote">
       <span class="nav-icon">🎮</span>
@@ -1151,7 +1400,7 @@
   <!-- Toast Notification System -->
   <div id="toast" class="toast"></div>
 
-  <!-- App Script (Native Browser SSE, zero external libraries) -->
+  <!-- App Script -->
   <script src="app.js"></script>
 </body>
 </html>

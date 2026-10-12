@@ -1,10 +1,10 @@
 {
-  "name": "Nova Cloud Assistant",
-  "short_name": "Nova Cloud",
+  "name": "Leags AI Hub",
+  "short_name": "Leags",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#0a0d14",
-  "theme_color": "#121722",
+  "background_color": "#070a13",
+  "theme_color": "#070a13",
   "orientation": "portrait-primary",
   "icons": [
     {
