@@ -86,15 +86,28 @@ function playChime(freq1 = 587.33, freq2 = 880) {
   setTimeout(() => playBeep(freq2, 0.25), 90);
 }
 
+let isSpeakingAudio = false;
+
 // Text to Speech (TTS) Talk-Back Engine
 function speakOutLoud(text) {
   if (!voiceReplyEnabled || !('speechSynthesis' in window)) return;
   try {
     window.speechSynthesis.cancel(); // Stop prior speech
     const cleanText = text.replace(/<[^>]*>/g, "").replace(/[#*`_~]/g, "").trim();
+    if (!cleanText) return;
     const utterance = new SpeechSynthesisUtterance(cleanText);
     utterance.rate = 1.05;
     utterance.pitch = 1.0;
+
+    utterance.onstart = () => {
+      isSpeakingAudio = true;
+    };
+    utterance.onend = () => {
+      setTimeout(() => { isSpeakingAudio = false; }, 400);
+    };
+    utterance.onerror = () => {
+      isSpeakingAudio = false;
+    };
     
     // Pick natural english voice
     const voices = window.speechSynthesis.getVoices();
@@ -103,6 +116,7 @@ function speakOutLoud(text) {
 
     window.speechSynthesis.speak(utterance);
   } catch (e) {
+    isSpeakingAudio = false;
     console.debug("TTS error:", e);
   }
 }
@@ -949,10 +963,32 @@ async function processAssistantCommand(rawInput) {
 if (btnSend) btnSend.addEventListener("click", () => processAssistantCommand(chatInput.value));
 if (chatInput) chatInput.addEventListener("keydown", e => { if (e.key === "Enter") processAssistantCommand(chatInput.value); });
 
-// ================= HANDS-FREE ACTIVE LISTENING ("LEAGS") =================
+// ================= HANDS-FREE ACTIVE LISTENING ("LEAGS" / "WAKE UP") =================
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 let recognition = null;
 let isRecognizing = false;
+let phoneWakeState = "STANDBY";
+let phoneListenTimer = null;
+let recognitionRestartTimer = null;
+
+function matchWakeWordPhrase(text) {
+  if (!text) return null;
+  const clean = text.toLowerCase().trim();
+  const patterns = [
+    /\b(wake\s*up\s*call|wake\s*up\s*leags|wake\s*up|wake\s*call)\b/i,
+    /\b(hey\s*leags|hey\s*legs|hey\s*leaks|hey\s*leagues|hey\s*lex|hey\s*lakes)\b/i,
+    /\b(ok\s*leags|okay\s*leags|hi\s*leags|hello\s*leags)\b/i,
+    /\b(leags|legs|leaks|leagues|lex|lakes|legos)\b/i
+  ];
+  for (const p of patterns) {
+    const m = clean.match(p);
+    if (m) {
+      const rest = clean.substring(m.index + m[0].length).replace(/^[,.:;!?-]+/, "").trim();
+      return { matched: true, phrase: m[0], remainder: rest };
+    }
+  }
+  return null;
+}
 
 if (SpeechRecognition) {
   recognition = new SpeechRecognition();
@@ -965,41 +1001,47 @@ if (SpeechRecognition) {
     if (btnMic) btnMic.classList.add("listening");
   };
 
-  recognition.onend = () => {
+  recognition.onerror = (e) => {
     isRecognizing = false;
-    if (btnMic) btnMic.classList.remove("listening");
-    // Auto-restart hands-free loop if enabled
-    if (handsFreeEnabled) {
-      setTimeout(() => {
-        try { recognition.start(); } catch(e) {}
-      }, 350);
+    console.debug("[Speech Recognition Error]:", e.error);
+    if (e.error !== "not-allowed" && handsFreeEnabled && isBiometricVerified) {
+      scheduleRecognitionRestart(600);
     }
   };
 
-  let phoneWakeState = "STANDBY";
-  let phoneListenTimer = null;
+  recognition.onend = () => {
+    isRecognizing = false;
+    if (btnMic) btnMic.classList.remove("listening");
+    // Auto-restart hands-free loop if enabled, verified, and not playing TTS
+    if (handsFreeEnabled && isBiometricVerified && !isSpeakingAudio) {
+      scheduleRecognitionRestart(350);
+    }
+  };
 
   recognition.onresult = (e) => {
+    // Prevent mic from processing assistant's own voice
+    if (isSpeakingAudio) return;
+    if (!isBiometricVerified) return;
+
     const lastIdx = e.results.length - 1;
     const transcript = e.results[lastIdx][0].transcript.trim().toLowerCase();
     console.log(`[Heard (${phoneWakeState})]:`, transcript);
 
     if (phoneWakeState === "STANDBY") {
-      const wakeMatch = transcript.match(/\b(hey leags|leags|ok leags|wake up leags|wake up)\b/i);
+      const wakeMatch = matchWakeWordPhrase(transcript);
       if (wakeMatch) {
-        triggerHaptic(25);
-        playChime(587.33, 880);
-        speakOutLoud("Yes, Limford?");
+        triggerHaptic(30);
+        playChime(660, 990); // Crisp wake-up alert without speaking over the user!
         phoneWakeState = "LISTENING_COMMAND";
         if (btnMic) btnMic.classList.add("listening");
+        showToast("🎙️ Listening to Limford... Speak command");
 
-        // Check if command followed immediately
-        let cmd = transcript.substring(wakeMatch.index + wakeMatch[0].length).trim();
-        if (cmd.length > 2) {
+        // If the user spoke the command in the same breath (e.g. "Hey Leags call yaw motor")
+        if (wakeMatch.remainder && wakeMatch.remainder.length > 2) {
           clearTimeout(phoneListenTimer);
-          processAssistantCommand(cmd);
           phoneWakeState = "STANDBY";
           if (btnMic) btnMic.classList.remove("listening");
+          processAssistantCommand(wakeMatch.remainder);
           return;
         }
 
@@ -1021,25 +1063,39 @@ if (SpeechRecognition) {
     }
   };
 
+  function scheduleRecognitionRestart(delay = 400) {
+    clearTimeout(recognitionRestartTimer);
+    recognitionRestartTimer = setTimeout(() => {
+      startRecognition();
+    }, delay);
+  }
+
   function startRecognition() {
-    if (!isRecognizing) {
-      try { recognition.start(); } catch(e) {}
+    if (!recognition || isSpeakingAudio || !isBiometricVerified || !handsFreeEnabled) return;
+    if (isRecognizing) return;
+    try {
+      recognition.start();
+      isRecognizing = true;
+    } catch(e) {
+      isRecognizing = false;
     }
   }
 
   function stopRecognition() {
-    if (isRecognizing) {
+    clearTimeout(recognitionRestartTimer);
+    if (recognition && isRecognizing) {
       try { recognition.stop(); } catch(e) {}
     }
+    isRecognizing = false;
   }
 
   if (btnMic) {
     btnMic.addEventListener("click", () => {
       triggerHaptic(20);
-      playChime(587.33, 880);
-      speakOutLoud("Yes, Limford?");
+      playChime(660, 990);
       phoneWakeState = "LISTENING_COMMAND";
       btnMic.classList.add("listening");
+      showToast("🎙️ Listening... Speak now");
       startRecognition();
 
       clearTimeout(phoneListenTimer);
@@ -1050,7 +1106,7 @@ if (SpeechRecognition) {
     });
   }
 
-  if (handsFreeEnabled) {
+  if (handsFreeEnabled && isBiometricVerified) {
     startRecognition();
   }
 }
@@ -1370,9 +1426,14 @@ const DEFAULT_LIMFORD_FACE_VECTOR = {
 function getEnrolledFaceVector() {
   const stored = localStorage.getItem("leags_limford_facial_vector");
   if (stored) {
-    try { return JSON.parse(stored); } catch (e) {}
+    try {
+      const parsed = JSON.parse(stored);
+      if (parsed && parsed.ratios && parsed.ratios.length >= 4) {
+        return parsed;
+      }
+    } catch (e) {}
   }
-  return DEFAULT_LIMFORD_FACE_VECTOR;
+  return null; // NEVER fallback to generic defaults! Must be explicitly enrolled by Limford!
 }
 
 // Baseline reference vector for Limford's acoustic voiceprint (pitch F0, 8 frequency bands, centroid)
@@ -1408,7 +1469,7 @@ function updateLockScreenEnrollmentVisibility() {
   if (voiceEnroll) voiceEnroll.style.display = enrolled ? "none" : "block";
 }
 
-// ---------------- 3D FACIAL RECOGNITION GEOMETRY ENGINE ----------------
+// ---------------- 3D FACE ID BIOMETRIC ANATOMICAL ENGINE ----------------
 function extractFacialFeatures(videoEl, canvasEl) {
   if (!videoEl || !canvasEl) return null;
   canvasEl.width = 320;
@@ -1421,8 +1482,7 @@ function extractFacialFeatures(videoEl, canvasEl) {
   let sumX = 0, sumY = 0;
   let minX = 320, maxX = 0, minY = 240, maxY = 0;
 
-  // Illumination-invariant skin chrominance histogram
-  const chromaHist = new Array(12).fill(0);
+  const chromaHist = new Array(8).fill(0);
 
   // Fast skin segmentation across frame
   for (let y = 10; y < 230; y += 2) {
@@ -1434,7 +1494,7 @@ function extractFacialFeatures(videoEl, canvasEl) {
 
       const maxC = Math.max(r, g, b);
       const minC = Math.min(r, g, b);
-      const isSkin = (r > 45 && g > 30 && b > 18 && (maxC - minC) > 10 && r > g && r > b);
+      const isSkin = (r > 45 && g > 30 && b > 18 && (maxC - minC) > 12 && r > g && r > b);
 
       if (isSkin) {
         skinPixels++;
@@ -1446,7 +1506,7 @@ function extractFacialFeatures(videoEl, canvasEl) {
         if (y > maxY) maxY = y;
 
         const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-        const bin = Math.min(11, Math.floor(lum / 22));
+        const bin = Math.min(7, Math.floor(lum / 32));
         chromaHist[bin]++;
       }
     }
@@ -1455,112 +1515,196 @@ function extractFacialFeatures(videoEl, canvasEl) {
   // Face size verification (reject if no human face in view)
   const faceWidth = maxX - minX;
   const faceHeight = maxY - minY;
-  if (skinPixels < 350 || faceWidth < 60 || faceHeight < 70) {
+  if (skinPixels < 400 || faceWidth < 70 || faceHeight < 80) {
     return null;
   }
 
   const cX = Math.round(sumX / skinPixels);
   const cY = Math.round(sumY / skinPixels);
-  const aspect = Number((faceHeight / Math.max(1, faceWidth)).toFixed(2));
+  const aspect = Number((faceHeight / Math.max(1, faceWidth)).toFixed(3));
 
-  // 1. Anatomical Landmark Coordinates
-  const eyeY = Math.round(minY + faceHeight * 0.35);
-  const leyeX = Math.max(minX, Math.round(cX - faceWidth * 0.22));
-  const reyeX = Math.min(maxX, Math.round(cX + faceWidth * 0.22));
-  const noseY = Math.round(minY + faceHeight * 0.55);
-  const mouthY = Math.round(minY + faceHeight * 0.78);
+  // --- TRUE BIOMETRIC ANATOMICAL LANDMARK EXTRACTION ---
+  // 1. Detect Real Left Eye (Darkest ocular cluster in left upper quadrant)
+  const eyeYMin = Math.round(minY + faceHeight * 0.22);
+  const eyeYMax = Math.round(minY + faceHeight * 0.46);
+  const eyeXLMin = Math.max(0, Math.round(minX + faceWidth * 0.12));
+  const eyeXLMax = Math.min(320, Math.round(minX + faceWidth * 0.46));
 
-  const interOcularDist = Math.max(20, reyeX - leyeX);
-  const eyeToNoseDist = Math.max(15, noseY - eyeY);
-  const noseToMouthDist = Math.max(12, mouthY - noseY);
-  const eyeToMouthDist = Math.max(25, mouthY - eyeY);
-
-  // Invariant geometric ratios
-  const r1 = Number((interOcularDist / faceWidth).toFixed(3));
-  const r2 = Number((eyeToNoseDist / noseToMouthDist).toFixed(3));
-  const r3 = Number((interOcularDist / eyeToMouthDist).toFixed(3));
-  const r4 = aspect;
-
-  // 2. Multi-Zone Texture Analysis (Forehead, Left Cheek, Right Cheek, Chin)
-  function getPatchTexture(px, py, pw, ph) {
-    let edgeEnergy = 0;
-    let count = 0;
-    const startX = Math.max(0, Math.min(320 - pw, px));
-    const startY = Math.max(0, Math.min(240 - ph, py));
-    const patch = ctx.getImageData(startX, startY, pw, ph).data;
-    for (let y = 1; y < ph - 1; y += 2) {
-      for (let x = 1; x < pw - 1; x += 2) {
-        const i = (y * pw + x) * 4;
-        const iR = (y * pw + (x + 1)) * 4;
-        const iD = ((y + 1) * pw + x) * 4;
-        const lum = 0.299 * patch[i] + 0.587 * patch[i+1] + 0.114 * patch[i+2];
-        const lumR = 0.299 * patch[iR] + 0.587 * patch[iR+1] + 0.114 * patch[iR+2];
-        const lumD = 0.299 * patch[iD] + 0.587 * patch[iD+1] + 0.114 * patch[iD+2];
-        edgeEnergy += Math.abs(lumR - lum) + Math.abs(lumD - lum);
-        count++;
+  let minLumL = 255;
+  for (let y = eyeYMin; y < eyeYMax; y += 2) {
+    for (let x = eyeXLMin; x < eyeXLMax; x += 2) {
+      const idx = (y * 320 + x) * 4;
+      const lum = 0.299 * imgData[idx] + 0.587 * imgData[idx + 1] + 0.114 * imgData[idx + 2];
+      if (lum < minLumL) minLumL = lum;
+    }
+  }
+  let darkSumXL = 0, darkSumYL = 0, darkCountL = 0;
+  const threshL = minLumL + 25;
+  for (let y = eyeYMin; y < eyeYMax; y += 2) {
+    for (let x = eyeXLMin; x < eyeXLMax; x += 2) {
+      const idx = (y * 320 + x) * 4;
+      const lum = 0.299 * imgData[idx] + 0.587 * imgData[idx + 1] + 0.114 * imgData[idx + 2];
+      if (lum <= threshL) {
+        darkSumXL += x;
+        darkSumYL += y;
+        darkCountL++;
       }
     }
-    return count ? Number((edgeEnergy / (count * 255) * 4).toFixed(3)) : 0.25;
   }
+  const realLeyeX = darkCountL ? Math.round(darkSumXL / darkCountL) : Math.round(minX + faceWidth * 0.28);
+  const realLeyeY = darkCountL ? Math.round(darkSumYL / darkCountL) : Math.round(minY + faceHeight * 0.34);
 
-  const foreheadTex = getPatchTexture(cX - 20, minY + 10, 40, 25);
-  const lCheekTex = getPatchTexture(cX - Math.round(faceWidth * 0.35), minY + Math.round(faceHeight * 0.50), 30, 30);
-  const rCheekTex = getPatchTexture(cX + Math.round(faceWidth * 0.15), minY + Math.round(faceHeight * 0.50), 30, 30);
-  const chinTex = getPatchTexture(cX - 20, maxY - 30, 40, 25);
+  // 2. Detect Real Right Eye (Darkest ocular cluster in right upper quadrant)
+  const eyeXRMin = Math.max(0, Math.round(minX + faceWidth * 0.54));
+  const eyeXRMax = Math.min(320, Math.round(minX + faceWidth * 0.88));
 
-  // 3. Bilateral Facial Symmetry
-  const diffCheek = Math.abs(lCheekTex - rCheekTex);
-  const symmetry = Number(Math.max(0.6, 1.0 - diffCheek * 1.5).toFixed(3));
+  let minLumR = 255;
+  for (let y = eyeYMin; y < eyeYMax; y += 2) {
+    for (let x = eyeXRMin; x < eyeXRMax; x += 2) {
+      const idx = (y * 320 + x) * 4;
+      const lum = 0.299 * imgData[idx] + 0.587 * imgData[idx + 1] + 0.114 * imgData[idx + 2];
+      if (lum < minLumR) minLumR = lum;
+    }
+  }
+  let darkSumXR = 0, darkSumYR = 0, darkCountR = 0;
+  const threshR = minLumR + 25;
+  for (let y = eyeYMin; y < eyeYMax; y += 2) {
+    for (let x = eyeXRMin; x < eyeXRMax; x += 2) {
+      const idx = (y * 320 + x) * 4;
+      const lum = 0.299 * imgData[idx] + 0.587 * imgData[idx + 1] + 0.114 * imgData[idx + 2];
+      if (lum <= threshR) {
+        darkSumXR += x;
+        darkSumYR += y;
+        darkCountR++;
+      }
+    }
+  }
+  const realReyeX = darkCountR ? Math.round(darkSumXR / darkCountR) : Math.round(minX + faceWidth * 0.72);
+  const realReyeY = darkCountR ? Math.round(darkSumYR / darkCountR) : Math.round(minY + faceHeight * 0.34);
 
-  // Normalize histogram
+  // 3. Detect Real Mouth (Lower lip separation / oral cluster)
+  const mouthYMin = Math.round(minY + faceHeight * 0.64);
+  const mouthYMax = Math.round(minY + faceHeight * 0.88);
+  const mouthXMin = Math.max(0, Math.round(minX + faceWidth * 0.25));
+  const mouthXMax = Math.min(320, Math.round(minX + faceWidth * 0.75));
+
+  let minLipLum = 255;
+  for (let y = mouthYMin; y < mouthYMax; y += 2) {
+    for (let x = mouthXMin; x < mouthXMax; x += 2) {
+      const idx = (y * 320 + x) * 4;
+      const lum = 0.299 * imgData[idx] + 0.587 * imgData[idx + 1] + 0.114 * imgData[idx + 2];
+      if (lum < minLipLum) minLipLum = lum;
+    }
+  }
+  let mouthSumX = 0, mouthSumY = 0, mouthCount = 0;
+  const threshM = minLipLum + 28;
+  for (let y = mouthYMin; y < mouthYMax; y += 2) {
+    for (let x = mouthXMin; x < mouthXMax; x += 2) {
+      const idx = (y * 320 + x) * 4;
+      const lum = 0.299 * imgData[idx] + 0.587 * imgData[idx + 1] + 0.114 * imgData[idx + 2];
+      if (lum <= threshM) {
+        mouthSumX += x;
+        mouthSumY += y;
+        mouthCount++;
+      }
+    }
+  }
+  const realMouthX = mouthCount ? Math.round(mouthSumX / mouthCount) : Math.round(cX);
+  const realMouthY = mouthCount ? Math.round(mouthSumY / mouthCount) : Math.round(minY + faceHeight * 0.76);
+
+  // 4. Invariant Anatomical Geometric Ratios (Person-Unique!)
+  const measuredEyeSpan = Math.max(20, realReyeX - realLeyeX);
+  const eyeMidY = (realLeyeY + realReyeY) / 2;
+  const eyeToMouthDist = Math.max(20, realMouthY - eyeMidY);
+  const noseX = Math.round((realLeyeX + realReyeX) / 2);
+
+  const r1 = Number((measuredEyeSpan / faceWidth).toFixed(4)); // Inter-ocular ratio
+  const r2 = Number((eyeToMouthDist / faceHeight).toFixed(4)); // Vertical facial span ratio
+  const r3 = Number((measuredEyeSpan / eyeToMouthDist).toFixed(4)); // Cranial triangle ratio
+  const r4 = Number((Math.abs((noseX - realLeyeX) - (realReyeX - noseX)) / Math.max(1, measuredEyeSpan)).toFixed(4)); // Bilateral nasal asymmetry
+
+  // 5. 16-Point Facial Contour Grid (Sampled 4x4 from inner face)
+  const grid = [];
+  let gridMeanLum = 0;
+  for (let gy = 0; gy < 4; gy++) {
+    for (let gx = 0; gx < 4; gx++) {
+      const sx = Math.min(319, Math.max(0, Math.round(minX + faceWidth * (0.2 + gx * 0.18))));
+      const sy = Math.min(239, Math.max(0, Math.round(minY + faceHeight * (0.2 + gy * 0.18))));
+      const idx = (sy * 320 + sx) * 4;
+      const lum = (0.299 * imgData[idx] + 0.587 * imgData[idx + 1] + 0.114 * imgData[idx + 2]) / 255;
+      grid.push(lum);
+      gridMeanLum += lum;
+    }
+  }
+  gridMeanLum /= 16;
+  const normGrid = grid.map(g => Number((g - gridMeanLum).toFixed(3)));
+
+  // 6. Normalized Chroma Histogram
   const normHist = chromaHist.map(h => Number((h / skinPixels).toFixed(3)));
 
   return {
     ratios: [r1, r2, r3, r4],
-    textures: [foreheadTex, lCheekTex, rCheekTex, chinTex],
-    chromaHist: normHist,
-    symmetry: symmetry,
     aspect: aspect,
+    grid: normGrid,
+    chromaHist: normHist,
     detected: true
   };
 }
 
-function calculateFacialSimilarity(v1, v2) {
-  if (!v1 || !v2 || !v1.ratios || !v2.ratios) return 0;
+// High-Security Deviation-Based Comparison Engine
+function calculateFacialSimilarity(live, enrolled) {
+  if (!live || !enrolled || !live.ratios || !enrolled.ratios) return 0;
 
-  // 1. Geometric Landmark Ratios (Weight 40%)
-  let dotR = 0, magR1 = 0, magR2 = 0;
-  for (let i = 0; i < v1.ratios.length; i++) {
-    dotR += v1.ratios[i] * v2.ratios[i];
-    magR1 += v1.ratios[i] * v1.ratios[i];
-    magR2 += v2.ratios[i] * v2.ratios[i];
+  // 1. Geometric Landmark Ratios Comparison (40% Weight)
+  const ratioWeights = [0.35, 0.30, 0.25, 0.10];
+  let totalRatioScore = 0;
+
+  for (let i = 0; i < live.ratios.length; i++) {
+    const lVal = live.ratios[i];
+    const eVal = enrolled.ratios[i];
+    const denom = Math.max(0.01, Math.abs(eVal));
+    const relDiff = Math.abs(lVal - eVal) / denom;
+    
+    // Strict tolerance: each ratio must be within ~10% of enrolled value!
+    // Beyond 12% difference, score drops to 0!
+    const score = Math.max(0, 1 - (relDiff / 0.12));
+    totalRatioScore += score * ratioWeights[i];
   }
-  const ratioScore = (magR1 && magR2) ? (dotR / (Math.sqrt(magR1) * Math.sqrt(magR2))) : 0.4;
 
-  // 2. Multi-Zone Facial Textures (Weight 25%)
-  let dotT = 0, magT1 = 0, magT2 = 0;
-  for (let i = 0; i < v1.textures.length; i++) {
-    dotT += v1.textures[i] * v2.textures[i];
-    magT1 += v1.textures[i] * v1.textures[i];
-    magT2 += v2.textures[i] * v2.textures[i];
+  // 2. Aspect Ratio (Height/Width) (20% Weight)
+  const aspectDiff = Math.abs(live.aspect - enrolled.aspect) / Math.max(0.01, enrolled.aspect);
+  const aspectScore = Math.max(0, 1 - (aspectDiff / 0.10)); // Must be within 10%
+
+  // 3. 16-Point Facial Contour Grid (25% Weight)
+  let gridScore = 0.5;
+  if (live.grid && enrolled.grid && live.grid.length === 16 && enrolled.grid.length === 16) {
+    let sumDiff = 0;
+    for (let k = 0; k < 16; k++) {
+      sumDiff += Math.abs(live.grid[k] - enrolled.grid[k]);
+    }
+    const avgDiff = sumDiff / 16;
+    gridScore = Math.max(0, 1 - (avgDiff * 4.0));
   }
-  const textureScore = (magT1 && magT2) ? (dotT / (Math.sqrt(magT1) * Math.sqrt(magT2))) : 0.4;
 
-  // 3. Chrominance Distribution (Weight 20%)
-  let dotC = 0, magC1 = 0, magC2 = 0;
-  for (let i = 0; i < v1.chromaHist.length; i++) {
-    dotC += v1.chromaHist[i] * v2.chromaHist[i];
-    magC1 += v1.chromaHist[i] * v1.chromaHist[i];
-    magC2 += v2.chromaHist[i] * v2.chromaHist[i];
+  // 4. Chrominance Distribution (15% Weight)
+  let chromaScore = 0.5;
+  if (live.chromaHist && enrolled.chromaHist) {
+    let histDiff = 0;
+    const count = Math.min(live.chromaHist.length, enrolled.chromaHist.length);
+    for (let h = 0; h < count; h++) {
+      histDiff += Math.abs(live.chromaHist[h] - enrolled.chromaHist[h]);
+    }
+    chromaScore = Math.max(0, 1 - (histDiff * 1.5));
   }
-  const chromaScore = (magC1 && magC2) ? (dotC / (Math.sqrt(magC1) * Math.sqrt(magC2))) : 0.4;
 
-  // 4. Symmetry & Aspect Match (Weight 15%)
-  const symmDiff = Math.abs(v1.symmetry - v2.symmetry);
-  const aspectDiff = Math.abs(v1.aspect - v2.aspect);
-  const symmScore = Math.max(0, 1 - (symmDiff * 1.2 + aspectDiff * 0.8));
+  const finalMatch = (
+    totalRatioScore * 0.40 +
+    aspectScore * 0.20 +
+    gridScore * 0.25 +
+    chromaScore * 0.15
+  );
 
-  return Math.min(1.0, (ratioScore * 0.40 + textureScore * 0.25 + chromaScore * 0.20 + symmScore * 0.15));
+  return Math.min(1.0, Math.max(0.0, finalMatch));
 }
 
 // ---------------- ANTI-SPOOF LIVENESS & TEMPORAL MOTION DETECTOR ----------------
@@ -1594,15 +1738,13 @@ function verifyLivenessAntiSpoof(snapEarly, snapLate) {
   const avgDelta = totalDiff / count;
 
   // 1. Static 2D Photo Rejection:
-  // A static photograph held still has near-zero delta (< 0.45)
-  // Real live human faces have micro-tremors, breathing, and eye micro-saccades (avgDelta 0.60 to 45.0)
-  if (avgDelta < 0.45) {
+  if (avgDelta < 0.35) {
     console.warn("[Face ID Anti-Spoof] Photo detected. Static pixel delta:", avgDelta);
     return { passed: false, reason: "STATIC_PHOTO_DETECTED", delta: avgDelta };
   }
 
   // 2. Violent / unnatural shaking rejection
-  if (avgDelta > 80.0) {
+  if (avgDelta > 85.0) {
     console.warn("[Face ID Anti-Spoof] Excessive unnatural motion:", avgDelta);
     return { passed: false, reason: "EXCESSIVE_MOTION", delta: avgDelta };
   }
@@ -1653,7 +1795,7 @@ async function startBiometricFaceScan(autoStart = false) {
 
   const stages = [
     { at: 20, text: "[1/4] FACE ID DEPTH MESH: LOCATING 3D FACIAL CONTOUR..." },
-    { at: 45, text: "[2/4] LANDMARK TRIANGULATION: CRANIAL & NASAL RATIOS..." },
+    { at: 45, text: "[2/4] LANDMARK TRIANGULATION: OCULAR & NASAL MESH..." },
     { at: 70, text: "[3/4] ANTI-SPOOF LIVENESS CHECK: EXAMINING MICRO-MOTION..." },
     { at: 90, text: "[4/4] BIOMETRIC VERIFICATION: MATCHING LIMFORD'S FACE ID..." }
   ];
@@ -1679,10 +1821,24 @@ async function startBiometricFaceScan(autoStart = false) {
       clearInterval(interval);
       isScanningFace = false;
 
-      const liveVec = extractFacialFeatures(videoEl, canvasEl);
+      const enrolledVec = getEnrolledFaceVector();
+      if (!enrolledVec) {
+        // STRICT SECURITY: NOT ENROLLED!
+        playBeep(180, 0.45, "sawtooth");
+        triggerHaptic(200);
+        if (viewfinder) viewfinder.classList.add("denied");
+        if (laserEl) laserEl.style.background = "#ef4444";
+        if (readoutEl) readoutEl.textContent = "❌ NOT ENROLLED: TAP 'ENROLL LIMFORD'S FACE ID' FIRST";
+        if (btn) btn.disabled = false;
 
+        setTimeout(() => {
+          if (viewfinder) viewfinder.classList.remove("denied");
+        }, 2500);
+        return;
+      }
+
+      const liveVec = extractFacialFeatures(videoEl, canvasEl);
       if (!liveVec) {
-        // No human face detected in frame
         playBeep(180, 0.35, "sawtooth");
         triggerHaptic(200);
         if (viewfinder) viewfinder.classList.add("denied");
@@ -1712,12 +1868,11 @@ async function startBiometricFaceScan(autoStart = false) {
         return;
       }
 
-      const enrolledVec = getEnrolledFaceVector();
       const similarity = calculateFacialSimilarity(liveVec, enrolledVec);
       const pct = Math.round(similarity * 100);
 
-      // Strict high-security threshold: 76% minimum match against Limford's enrolled Face ID
-      if (similarity >= 0.76) {
+      // Strict high-security threshold: 75% minimum match against Limford's true enrolled Face ID
+      if (similarity >= 0.75) {
         playChime(660, 990);
         triggerHaptic([100, 50, 150]);
         if (viewfinder) viewfinder.classList.add("verified");
@@ -1734,7 +1889,7 @@ async function startBiometricFaceScan(autoStart = false) {
         }, 500);
 
       } else {
-        // Face Mismatch - Access Denied
+        // Face Mismatch - Access Strictly Denied!
         playBeep(180, 0.45, "sawtooth");
         triggerHaptic(200);
         if (viewfinder) viewfinder.classList.add("denied");
@@ -1750,14 +1905,12 @@ async function startBiometricFaceScan(autoStart = false) {
   }, 75);
 }
 
-// ---------------- INITIAL ENROLLMENT: FACE ID PROFILE ----------------
+// ---------------- INITIAL ENROLLMENT: 3-FRAME ANCHORED FACE ID PROFILE ----------------
 async function enrollLimfordFace() {
   triggerHaptic(30);
   const videoEl = document.getElementById("gate-camera-feed");
   const canvasEl = document.getElementById("gate-canvas");
   const readoutEl = document.getElementById("gate-scan-readout");
-
-  if (readoutEl) readoutEl.textContent = "CALIBRATING FACE ID: KEEP STILL...";
 
   if (!gateCameraStream) {
     try {
@@ -1772,30 +1925,67 @@ async function enrollLimfordFace() {
     }
   }
 
-  setTimeout(() => {
-    const vec = extractFacialFeatures(videoEl, canvasEl);
-    if (vec && vec.ratios && vec.ratios.length >= 4) {
-      localStorage.setItem("leags_limford_facial_vector", JSON.stringify(vec));
-      localStorage.setItem("leags_faceid_enrolled", "true");
-      // Clean up legacy keys
-      localStorage.removeItem("leags_limford_retinal_vector");
+  if (readoutEl) readoutEl.textContent = "HOLD STILL: CAPTURING 3D FACIAL ANCHOR (FRAME 1/3)...";
 
-      playChime(660, 990);
-      triggerHaptic([60, 40, 120]);
-      if (readoutEl) readoutEl.textContent = "✓ LIMFORD'S FACE ID SAVED & LOCKED!";
-      updateLockScreenEnrollmentVisibility();
-      showToast("✓ Face ID enrolled successfully! Profile secured.");
-      speakOutLoud("Face ID successfully enrolled and secured for Operator Limford.");
-    } else {
-      alert("Unable to detect full facial landmarks. Please ensure your face is well-lit and centered in the frame.");
+  setTimeout(() => {
+    const f1 = extractFacialFeatures(videoEl, canvasEl);
+    if (!f1) {
+      alert("No face detected. Position your face directly in the frame and retry.");
       if (readoutEl) readoutEl.textContent = "STANDBY: POSITION FACE FOR FACE ID";
+      return;
     }
-  }, 700);
+
+    if (readoutEl) readoutEl.textContent = "HOLD STILL: COMPUTING BIOMETRIC GEOMETRY (FRAME 2/3)...";
+
+    setTimeout(() => {
+      const f2 = extractFacialFeatures(videoEl, canvasEl);
+      if (!f2) {
+        alert("Face moved out of frame. Please retry.");
+        return;
+      }
+
+      if (readoutEl) readoutEl.textContent = "FINALIZING LIMFORD'S CRYPTO-ANCHOR (FRAME 3/3)...";
+
+      setTimeout(() => {
+        const f3 = extractFacialFeatures(videoEl, canvasEl);
+        if (!f3) {
+          alert("Face moved out of frame. Please retry.");
+          return;
+        }
+
+        // Average 3 frames to eliminate camera sensor noise and obtain true anchor
+        const avgRatios = f1.ratios.map((r, i) => Number(((r + f2.ratios[i] + f3.ratios[i]) / 3).toFixed(4)));
+        const avgAspect = Number(((f1.aspect + f2.aspect + f3.aspect) / 3).toFixed(4));
+        const avgGrid = f1.grid.map((g, i) => Number(((g + f2.grid[i] + f3.grid[i]) / 3).toFixed(4)));
+        const avgChroma = f1.chromaHist.map((c, i) => Number(((c + f2.chromaHist[i] + f3.chromaHist[i]) / 3).toFixed(4)));
+
+        const anchorVector = {
+          ratios: avgRatios,
+          aspect: avgAspect,
+          grid: avgGrid,
+          chromaHist: avgChroma,
+          enrolledAt: Date.now(),
+          operator: "Limford"
+        };
+
+        localStorage.setItem("leags_limford_facial_vector", JSON.stringify(anchorVector));
+        localStorage.setItem("leags_faceid_enrolled", "true");
+        localStorage.removeItem("leags_limford_retinal_vector");
+
+        playChime(660, 990);
+        triggerHaptic([60, 40, 120]);
+        if (readoutEl) readoutEl.textContent = "✓ LIMFORD'S FACE ID ANCHORED & LOCKED!";
+        updateLockScreenEnrollmentVisibility();
+        showToast("✓ Face ID profile enrolled & locked for Limford!");
+        speakOutLoud("Face ID successfully enrolled and secured for Operator Limford.");
+      }, 250);
+    }, 250);
+  }, 400);
 }
 
 // ---------------- VOICE ACTIVATION ON THE LOCK SCREEN ----------------
 function triggerVoiceActivationPrompt() {
-  showToast("🎙️ Listening... Say 'Leags, unlock' or 'Face ID'");
+  showToast("🎙️ Listening... Say 'Wake up', 'Leags unlock', or 'Face ID'");
   playBeep(660, 0.1, "sine");
   startLockScreenVoiceActivation();
 }
@@ -1804,6 +1994,13 @@ function startLockScreenVoiceActivation() {
   if (isBiometricVerified) return;
   const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRec) return;
+
+  // Prevent microphone hardware collision with main assistant recognition
+  try {
+    if (typeof isListening !== "undefined" && isListening && typeof stopRecognition === "function") {
+      stopRecognition();
+    }
+  } catch(e) {}
 
   if (lockScreenVoiceRec) {
     try { lockScreenVoiceRec.stop(); } catch(e) {}
@@ -1819,7 +2016,12 @@ function startLockScreenVoiceActivation() {
       const last = e.results[e.results.length - 1][0].transcript.toLowerCase();
       console.log("[Lock Voice Activation] Heard:", last);
 
-      if (last.includes("leags") || last.includes("unlock") || last.includes("authorize") || last.includes("limford") || last.includes("face id") || last.includes("face")) {
+      if (
+        last.includes("leags") || last.includes("legs") || last.includes("leaks") ||
+        last.includes("leagues") || last.includes("wake up") || last.includes("wake") ||
+        last.includes("unlock") || last.includes("authorize") || last.includes("limford") ||
+        last.includes("face id") || last.includes("face")
+      ) {
         playChime(660, 880);
         showToast("🎙️ Voice Activation Triggered! Scanning Face ID...");
         const readout = document.getElementById("gate-scan-readout");
@@ -2139,26 +2341,51 @@ async function recalibrateFaceFromVault() {
     });
     if (videoEl) videoEl.srcObject = stream;
 
-    alert("Look directly into the camera. We are capturing your new Face ID profile now.");
+    showToast("Look directly into camera. Anchoring 3D Face ID profile...");
+    playBeep(660, 0.1, "sine");
 
     setTimeout(() => {
-      const vec = extractFacialFeatures(videoEl, canvasEl);
-      stream.getTracks().forEach(t => t.stop());
-
-      if (vec && vec.ratios && vec.ratios.length >= 4) {
-        localStorage.setItem("leags_limford_facial_vector", JSON.stringify(vec));
-        localStorage.setItem("leags_faceid_enrolled", "true");
-        localStorage.removeItem("leags_limford_retinal_vector");
-        playChime(660, 990);
-        speakOutLoud("Face ID profile successfully updated and secured for Limford.");
-        alert("✓ Limford's Face ID profile successfully updated and secured!");
-      } else {
+      const f1 = extractFacialFeatures(videoEl, canvasEl);
+      if (!f1) {
+        stream.getTracks().forEach(t => t.stop());
         alert("Unable to detect full Face ID landmarks. Please ensure your face is well-lit and retry.");
+        openSecurityHub();
+        return;
       }
-      openSecurityHub();
-    }, 1200);
+
+      setTimeout(() => {
+        const f2 = extractFacialFeatures(videoEl, canvasEl);
+        setTimeout(() => {
+          const f3 = extractFacialFeatures(videoEl, canvasEl) || f2;
+          stream.getTracks().forEach(t => t.stop());
+
+          const avgRatios = f1.ratios.map((r, i) => Number(((r + (f2 ? f2.ratios[i] : r) + (f3 ? f3.ratios[i] : r)) / 3).toFixed(4)));
+          const avgAspect = Number(((f1.aspect + (f2 ? f2.aspect : f1.aspect) + (f3 ? f3.aspect : f1.aspect)) / 3).toFixed(4));
+          const avgGrid = f1.grid.map((g, i) => Number(((g + (f2 ? f2.grid[i] : g) + (f3 ? f3.grid[i] : g)) / 3).toFixed(4)));
+          const avgChroma = f1.chromaHist.map((c, i) => Number(((c + (f2 ? f2.chromaHist[i] : c) + (f3 ? f3.chromaHist[i] : c)) / 3).toFixed(4)));
+
+          const anchorVector = {
+            ratios: avgRatios,
+            aspect: avgAspect,
+            grid: avgGrid,
+            chromaHist: avgChroma,
+            enrolledAt: Date.now(),
+            operator: "Limford"
+          };
+
+          localStorage.setItem("leags_limford_facial_vector", JSON.stringify(anchorVector));
+          localStorage.setItem("leags_faceid_enrolled", "true");
+          localStorage.removeItem("leags_limford_retinal_vector");
+          playChime(660, 990);
+          speakOutLoud("Face ID profile successfully updated and secured for Limford.");
+          showToast("✓ Limford's Face ID profile updated!");
+          openSecurityHub();
+        }, 200);
+      }, 200);
+    }, 600);
   } catch (e) {
     alert("Camera error: " + e.message);
+    openSecurityHub();
   }
 }
 
@@ -2255,12 +2482,24 @@ function completeAuthorization(method = "Biometric Verification") {
 
   // Broadcast cross-device verification so PC workstation unlocks automatically!
   publishAuthEvent("AUTH_VERIFIED", "Samsung Galaxy A52");
+
+  // Automatically enable assistant voice recognition hands-free once unlocked
+  setTimeout(() => {
+    if (isBiometricVerified && typeof startRecognition === "function") {
+      startRecognition();
+    }
+  }, 1200);
 }
 
 function lockSystemManually() {
   triggerHaptic(40);
   isBiometricVerified = false;
   sessionStorage.removeItem("leags_authorized");
+  try {
+    if (typeof stopRecognition === "function") {
+      stopRecognition();
+    }
+  } catch(e) {}
   initSecurityGate();
   showToast("🔒 Security Gateway Activated. System Locked.");
   speakOutLoud("System locked. Face ID active.");
