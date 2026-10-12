@@ -1414,14 +1414,14 @@
       <!-- Mode Selector Tabs (Strict Biometrics Only - No PIN) -->
       <div class="bio-mode-tabs">
         <button class="bio-tab-btn active" id="tab-btn-facial" onclick="switchBioMode('facial')">
-          <span>👤 Facial Recognition</span>
+          <span>👤 Face ID</span>
         </button>
         <button class="bio-tab-btn" id="tab-btn-voice" onclick="switchBioMode('voice')">
           <span>🎙️ Voiceprint Acoustic</span>
         </button>
       </div>
 
-      <!-- Mode 1: 3D Facial Recognition View with Voice Activation -->
+      <!-- Mode 1: 3D Face ID View with Voice Activation -->
       <div class="bio-mode-content" id="bio-mode-facial">
         <div class="bio-scanner-frame" style="width: 210px; height: 260px;">
           <div class="cyber-bracket top-left"></div>
@@ -1447,27 +1447,26 @@
 
         <div class="voice-activation-pill" id="gate-voice-active-indicator" onclick="triggerVoiceActivationPrompt()">
           <span class="pulse-dot"></span>
-          <span>🎙️ Voice Active: Say <strong>"Leags, unlock"</strong> or tap Verify</span>
+          <span>🎙️ Voice Active: Say <strong>"Leags, unlock"</strong> or <strong>"Face ID"</strong></span>
         </div>
 
         <div class="bio-progress-container">
           <div class="bio-progress-track">
             <div class="bio-progress-fill" id="gate-scan-fill"></div>
           </div>
-          <div class="bio-scan-readout" id="gate-scan-readout">STANDBY: POSITION FACE IN FRAME</div>
+          <div class="bio-scan-readout" id="gate-scan-readout">STANDBY: POSITION FACE FOR FACE ID</div>
         </div>
 
         <div class="bio-gate-actions" style="width: 100%; display: flex; flex-direction: column; gap: 8px;">
           <button class="btn-bio-verify" id="btn-start-face-scan" onclick="startBiometricFaceScan(false)">
-            ⚡ VERIFY FACIAL IDENTITY (VOICE-ACTIVATED)
+            ⚡ VERIFY FACE ID (VOICE-ACTIVATED)
           </button>
           <!-- One-time Initial Setup only: completely hidden once enrolled so no stranger can reset! -->
           <div id="facial-enroll-container" style="display: none; width: 100%;">
             <button type="button" class="btn-bio-enroll" onclick="enrollLimfordFace()" style="width: 100%; background: rgba(6, 182, 212, 0.15); border: 1px solid rgba(6,182,212,0.4); color: #67e8f9; font-size: 0.76rem; font-weight: 700; padding: 8px 12px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
-              👤 Initial Setup: Enroll Limford's Face Profile
+              👤 Initial Setup: Enroll Limford's Face ID
             </button>
           </div>
-          <div id="retinal-enroll-container" style="display: none;"></div>
         </div>
         <canvas id="gate-canvas" width="320" height="240" style="display: none;"></canvas>
       </div>
@@ -1524,11 +1523,11 @@
 
       <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 10px; text-align: left;">
         <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-size: 0.8rem; color: #cbd5e1;">👤 3D Facial Recognition Matrix</span>
+          <span style="font-size: 0.8rem; color: #cbd5e1;">👤 Face ID Profile</span>
           <span id="vault-face-status" class="sec-status-badge">ENROLLED</span>
         </div>
         <button onclick="recalibrateFaceFromVault()" style="background: rgba(6, 182, 212, 0.2); border: 1px solid rgba(6, 182, 212, 0.4); color: #67e8f9; font-size: 0.76rem; font-weight: 700; padding: 8px 12px; border-radius: 8px; cursor: pointer;">
-          👤 Retake Facial Recognition Biometrics
+          👤 Retake / Recalibrate Face ID
         </button>
 
         <div style="height: 1px; background: rgba(255,255,255,0.06); margin: 4px 0;"></div>
@@ -1983,11 +1982,11 @@
     <img id="modal-img" src="" alt="Full Desktop Screenshot" style="max-width: 100%; max-height: 90vh; object-fit: contain; border-radius: 8px;">
   </div>
 
-  <!-- Cyberpunk Biometric Face / Retinal Scan Modal -->
+  <!-- Face ID 3D Biometric Scan Modal -->
   <div id="modal-bio-scan" class="modal-backdrop">
     <div class="bio-scanner-card">
-      <h3 style="color: #06b6d4; font-size: 1.1rem; letter-spacing: 0.05em;">BIOMETRIC RECOGNITION</h3>
-      <p style="font-size: 0.76rem; color: #94a3b8;">Position face in viewfinder for optical &amp; retinal verification</p>
+      <h3 style="color: #06b6d4; font-size: 1.1rem; letter-spacing: 0.05em;">FACE ID 3D BIOMETRICS</h3>
+      <p style="font-size: 0.76rem; color: #94a3b8;">Center face in viewfinder for Face ID &amp; 3D depth verification</p>
       
       <div class="bio-viewfinder">
         <video id="bio-video" autoplay playsinline muted></video>
@@ -2059,7 +2058,7 @@
   <!-- Toast Notification System -->
   <div id="toast" class="toast"></div>
 
-  <!-- App Script -->
-  <script src="app.js"></script>
+  <!-- App Script with Cache-Busting -->
+  <script src="app.js?v=faceid-v5"></script>
 </body>
 </html>

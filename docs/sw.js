@@ -1,12 +1,23 @@
-// Minimal Service Worker to enable native PWA installation
-const CACHE_NAME = 'leags-cache-v2';
+// Leags PWA Service Worker - v5 (Face ID & Anti-Spoof Engine)
+const CACHE_NAME = 'leags-cache-v5';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    caches.keys().then((keys) => {
+      return Promise.all(
+        keys.map((key) => {
+          if (key !== CACHE_NAME) {
+            console.log('[SW] Clearing legacy cache:', key);
+            return caches.delete(key);
+          }
+        })
+      );
+    }).then(() => self.clients.claim())
+  );
 });
 
 self.addEventListener('fetch', (event) => {

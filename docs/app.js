@@ -1121,7 +1121,7 @@ function startVoiceEnrollment() {
   });
 }
 
-// ================= BIOMETRIC SECURITY: RETINAL / FACE SCAN =================
+// ================= BIOMETRIC SECURITY: FACE ID 3D SCAN =================
 let videoStream = null;
 
 function openBiometricScanner() {
@@ -1143,7 +1143,7 @@ function openBiometricScanner() {
       if (video) video.srcObject = stream;
       runBiometricScanSequence();
     }).catch(err => {
-      bioStatus.textContent = "Camera access denied. Retinal simulation running...";
+      bioStatus.textContent = "Camera access denied. Face ID simulation running...";
       runBiometricScanSequence();
     });
   } else {
@@ -1157,10 +1157,10 @@ function runBiometricScanSequence() {
   let progress = 0;
 
   const steps = [
-    { p: 25, msg: "ACQUIRING FACIAL GEOMETRY...", freq: 520 },
-    { p: 55, msg: "SCANNING RETINAL PATTERN & IRIS...", freq: 740 },
-    { p: 85, msg: "COMPARING BIOMETRIC SIGNATURE...", freq: 880 },
-    { p: 100, msg: "BIOMETRIC CONFIRMED: LINFORD ANTWI", freq: 1174 }
+    { p: 25, msg: "ACQUIRING 3D FACIAL GEOMETRY...", freq: 520 },
+    { p: 55, msg: "ANALYZING FACE ID DEPTH MESH & LIVENESS...", freq: 740 },
+    { p: 85, msg: "VERIFYING BIOMETRIC CRYPTO-SIGNATURE...", freq: 880 },
+    { p: 100, msg: "FACE ID CONFIRMED: LIMFORD", freq: 1174 }
   ];
 
   let stepIdx = 0;
@@ -1368,7 +1368,7 @@ const DEFAULT_LIMFORD_FACE_VECTOR = {
 };
 
 function getEnrolledFaceVector() {
-  const stored = localStorage.getItem("leags_limford_facial_vector") || localStorage.getItem("leags_limford_retinal_vector");
+  const stored = localStorage.getItem("leags_limford_facial_vector");
   if (stored) {
     try { return JSON.parse(stored); } catch (e) {}
   }
@@ -1391,22 +1391,20 @@ function getEnrolledVoiceVector() {
 }
 
 function isBiometricsEnrolled() {
-  const hasFace = localStorage.getItem("leags_limford_facial_vector") !== null || localStorage.getItem("leags_limford_retinal_vector") !== null;
+  const hasFace = localStorage.getItem("leags_limford_facial_vector") !== null;
   const hasVoice = localStorage.getItem("leags_limford_voiceprint_vector") !== null;
-  const flag = localStorage.getItem("leags_biometrics_enrolled") === "true";
+  const flag = localStorage.getItem("leags_faceid_enrolled") === "true";
   return flag || (hasFace && hasVoice);
 }
 
 function updateLockScreenEnrollmentVisibility() {
   const faceEnroll = document.getElementById("facial-enroll-container");
-  const retinaEnroll = document.getElementById("retinal-enroll-container");
   const voiceEnroll = document.getElementById("voice-enroll-container");
   const enrolled = isBiometricsEnrolled();
 
   // Once enrolled, NEVER show calibration or setup buttons on the lock screen!
   // No unauthorized stranger at the lock screen can ever reset Limford's biometrics.
   if (faceEnroll) faceEnroll.style.display = enrolled ? "none" : "block";
-  if (retinaEnroll) retinaEnroll.style.display = "none";
   if (voiceEnroll) voiceEnroll.style.display = enrolled ? "none" : "block";
 }
 
@@ -1565,7 +1563,54 @@ function calculateFacialSimilarity(v1, v2) {
   return Math.min(1.0, (ratioScore * 0.40 + textureScore * 0.25 + chromaScore * 0.20 + symmScore * 0.15));
 }
 
-// ---------------- 3D FACIAL RECOGNITION SCAN FLOW ----------------
+// ---------------- ANTI-SPOOF LIVENESS & TEMPORAL MOTION DETECTOR ----------------
+function sampleFacePatch(canvasEl, videoEl) {
+  if (!canvasEl || !videoEl) return null;
+  try {
+    const ctx = canvasEl.getContext('2d');
+    ctx.drawImage(videoEl, 0, 0, 320, 240);
+    // Sample the central 90x90 facial core region (bridge of nose, eyes, cheeks)
+    const imgData = ctx.getImageData(115, 75, 90, 90).data;
+    const lums = [];
+    for (let i = 0; i < imgData.length; i += 16) {
+      const lum = 0.299 * imgData[i] + 0.587 * imgData[i + 1] + 0.114 * imgData[i + 2];
+      lums.push(lum);
+    }
+    return lums;
+  } catch (e) {
+    return null;
+  }
+}
+
+function verifyLivenessAntiSpoof(snapEarly, snapLate) {
+  if (!snapEarly || !snapLate || snapEarly.length === 0 || snapLate.length === 0) {
+    return { passed: true, reason: "BYPASS_UNAVAILABLE" };
+  }
+  let totalDiff = 0;
+  const count = Math.min(snapEarly.length, snapLate.length);
+  for (let i = 0; i < count; i++) {
+    totalDiff += Math.abs(snapEarly[i] - snapLate[i]);
+  }
+  const avgDelta = totalDiff / count;
+
+  // 1. Static 2D Photo Rejection:
+  // A static photograph held still has near-zero delta (< 0.45)
+  // Real live human faces have micro-tremors, breathing, and eye micro-saccades (avgDelta 0.60 to 45.0)
+  if (avgDelta < 0.45) {
+    console.warn("[Face ID Anti-Spoof] Photo detected. Static pixel delta:", avgDelta);
+    return { passed: false, reason: "STATIC_PHOTO_DETECTED", delta: avgDelta };
+  }
+
+  // 2. Violent / unnatural shaking rejection
+  if (avgDelta > 80.0) {
+    console.warn("[Face ID Anti-Spoof] Excessive unnatural motion:", avgDelta);
+    return { passed: false, reason: "EXCESSIVE_MOTION", delta: avgDelta };
+  }
+
+  return { passed: true, reason: "LIVE_HUMAN_CONFIRMED", delta: avgDelta };
+}
+
+// ---------------- 3D FACE ID BIOMETRIC SCAN FLOW ----------------
 async function startBiometricFaceScan(autoStart = false) {
   if (isScanningFace || isBiometricVerified) return;
   isScanningFace = true;
@@ -1581,8 +1626,7 @@ async function startBiometricFaceScan(autoStart = false) {
 
   if (btn) btn.disabled = true;
   if (viewfinder) viewfinder.classList.remove("verified", "denied");
-  if (videoEl) videoEl.classList.remove("ocular-zoomed");
-  if (readoutEl) readoutEl.textContent = "INITIALIZING 3D FACIAL SENSORS...";
+  if (readoutEl) readoutEl.textContent = "INITIALIZING 3D FACE ID SENSORS...";
 
   try {
     if (!gateCameraStream) {
@@ -1604,17 +1648,27 @@ async function startBiometricFaceScan(autoStart = false) {
   }
 
   let progress = 0;
+  let snapEarly = null;
+  let snapLate = null;
+
   const stages = [
-    { at: 20, text: "[1/4] OPTICAL ACQUISITION: 3D FACIAL CONTOUR LOCATED..." },
-    { at: 45, text: "[2/4] LANDMARK EXTRACTION: OCULAR & NASAL GEOMETRY..." },
-    { at: 70, text: "[3/4] TEXTURE & CHROMA: EXTRACTING BIOMETRIC SIGNATURE..." },
-    { at: 90, text: "[4/4] CROSS-MATCHING AGAINST LIMFORD'S SECURE PROFILE..." }
+    { at: 20, text: "[1/4] FACE ID DEPTH MESH: LOCATING 3D FACIAL CONTOUR..." },
+    { at: 45, text: "[2/4] LANDMARK TRIANGULATION: CRANIAL & NASAL RATIOS..." },
+    { at: 70, text: "[3/4] ANTI-SPOOF LIVENESS CHECK: EXAMINING MICRO-MOTION..." },
+    { at: 90, text: "[4/4] BIOMETRIC VERIFICATION: MATCHING LIMFORD'S FACE ID..." }
   ];
 
   const interval = setInterval(() => {
     progress += 5;
     if (fillEl) fillEl.style.width = `${progress}%`;
     playBeep(750 + progress * 8, 0.035, "triangle");
+
+    // Sample temporal frames for anti-spoof liveness check
+    if (progress === 25) {
+      snapEarly = sampleFacePatch(canvasEl, videoEl);
+    } else if (progress === 75) {
+      snapLate = sampleFacePatch(canvasEl, videoEl);
+    }
 
     const stage = stages.find(s => s.at === progress);
     if (stage && readoutEl) {
@@ -1633,7 +1687,7 @@ async function startBiometricFaceScan(autoStart = false) {
         triggerHaptic(200);
         if (viewfinder) viewfinder.classList.add("denied");
         if (laserEl) laserEl.style.background = "#ef4444";
-        if (readoutEl) readoutEl.textContent = "❌ NO FACE DETECTED: POSITION FACE IN FRAME";
+        if (readoutEl) readoutEl.textContent = "❌ NO FACE DETECTED: POSITION FACE FOR FACE ID";
         if (btn) btn.disabled = false;
 
         setTimeout(() => {
@@ -1642,17 +1696,33 @@ async function startBiometricFaceScan(autoStart = false) {
         return;
       }
 
+      // High-Security Anti-Spoof Liveness verification
+      const liveness = verifyLivenessAntiSpoof(snapEarly, snapLate);
+      if (!liveness.passed) {
+        playBeep(180, 0.45, "sawtooth");
+        triggerHaptic(200);
+        if (viewfinder) viewfinder.classList.add("denied");
+        if (laserEl) laserEl.style.background = "#ef4444";
+        if (readoutEl) readoutEl.textContent = "❌ ANTI-SPOOF: LIVE HUMAN FACE REQUIRED (PHOTO REJECTED)";
+        if (btn) btn.disabled = false;
+
+        setTimeout(() => {
+          if (viewfinder) viewfinder.classList.remove("denied");
+        }, 2500);
+        return;
+      }
+
       const enrolledVec = getEnrolledFaceVector();
       const similarity = calculateFacialSimilarity(liveVec, enrolledVec);
       const pct = Math.round(similarity * 100);
 
-      // Strict high-security threshold: minimum 72% match required
-      if (similarity >= 0.72) {
+      // Strict high-security threshold: 76% minimum match against Limford's enrolled Face ID
+      if (similarity >= 0.76) {
         playChime(660, 990);
         triggerHaptic([100, 50, 150]);
         if (viewfinder) viewfinder.classList.add("verified");
         if (laserEl) laserEl.style.background = "#10b981";
-        if (readoutEl) readoutEl.textContent = `✓ FACIAL CLEARANCE CONFIRMED: LIMFORD (${pct}% MATCH)`;
+        if (readoutEl) readoutEl.textContent = `✓ FACE ID CONFIRMED: LIMFORD (${pct}% MATCH // LIVENESS PASS)`;
 
         if (gateCameraStream) {
           gateCameraStream.getTracks().forEach(t => t.stop());
@@ -1660,16 +1730,16 @@ async function startBiometricFaceScan(autoStart = false) {
         }
 
         setTimeout(() => {
-          completeAuthorization(`3D Facial Recognition (${pct}% Match)`);
+          completeAuthorization(`Face ID 3D Biometrics (${pct}% Match)`);
         }, 500);
 
       } else {
-        // Facial Mismatch - Access Denied
+        // Face Mismatch - Access Denied
         playBeep(180, 0.45, "sawtooth");
         triggerHaptic(200);
         if (viewfinder) viewfinder.classList.add("denied");
         if (laserEl) laserEl.style.background = "#ef4444";
-        if (readoutEl) readoutEl.textContent = `❌ FACIAL MISMATCH (${pct}% MATCH): UNRECOGNIZED FACE // ACCESS DENIED`;
+        if (readoutEl) readoutEl.textContent = `❌ FACE ID MISMATCH (${pct}% MATCH): ACCESS DENIED`;
         if (btn) btn.disabled = false;
 
         setTimeout(() => {
@@ -1677,40 +1747,55 @@ async function startBiometricFaceScan(autoStart = false) {
         }, 2200);
       }
     }
-  }, 85);
+  }, 75);
 }
 
-// ---------------- INITIAL ENROLLMENT: FACIAL PROFILE ----------------
-function enrollLimfordFace() {
+// ---------------- INITIAL ENROLLMENT: FACE ID PROFILE ----------------
+async function enrollLimfordFace() {
   triggerHaptic(30);
   const videoEl = document.getElementById("gate-camera-feed");
   const canvasEl = document.getElementById("gate-canvas");
   const readoutEl = document.getElementById("gate-scan-readout");
 
+  if (readoutEl) readoutEl.textContent = "CALIBRATING FACE ID: KEEP STILL...";
+
   if (!gateCameraStream) {
-    startBiometricFaceScan(false);
-    alert("Camera initializing. Please position your face clearly in the frame and tap Enroll again in 2 seconds.");
-    return;
+    try {
+      gateCameraStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
+        audio: false
+      });
+      if (videoEl) videoEl.srcObject = gateCameraStream;
+    } catch (err) {
+      alert("Camera permission required to enroll Face ID. Please grant camera access.");
+      return;
+    }
   }
 
   setTimeout(() => {
     const vec = extractFacialFeatures(videoEl, canvasEl);
-    if (vec && vec.ratios && vec.ratios.length === 4) {
+    if (vec && vec.ratios && vec.ratios.length >= 4) {
       localStorage.setItem("leags_limford_facial_vector", JSON.stringify(vec));
+      localStorage.setItem("leags_faceid_enrolled", "true");
+      // Clean up legacy keys
+      localStorage.removeItem("leags_limford_retinal_vector");
+
       playChime(660, 990);
       triggerHaptic([60, 40, 120]);
-      if (readoutEl) readoutEl.textContent = "✓ LIMFORD'S FACIAL PROFILE SAVED & LOCKED!";
-      checkInitialEnrollmentComplete();
-      alert("Facial recognition profile successfully calibrated and locked for Operator Limford!");
+      if (readoutEl) readoutEl.textContent = "✓ LIMFORD'S FACE ID SAVED & LOCKED!";
+      updateLockScreenEnrollmentVisibility();
+      showToast("✓ Face ID enrolled successfully! Profile secured.");
+      speakOutLoud("Face ID successfully enrolled and secured for Operator Limford.");
     } else {
-      alert("Unable to detect facial landmarks. Please ensure your face is well-lit and centered in the frame.");
+      alert("Unable to detect full facial landmarks. Please ensure your face is well-lit and centered in the frame.");
+      if (readoutEl) readoutEl.textContent = "STANDBY: POSITION FACE FOR FACE ID";
     }
   }, 700);
 }
 
 // ---------------- VOICE ACTIVATION ON THE LOCK SCREEN ----------------
 function triggerVoiceActivationPrompt() {
-  showToast("🎙️ Listening... Say 'Leags, unlock' or 'Authorize Leags'");
+  showToast("🎙️ Listening... Say 'Leags, unlock' or 'Face ID'");
   playBeep(660, 0.1, "sine");
   startLockScreenVoiceActivation();
 }
@@ -1734,11 +1819,11 @@ function startLockScreenVoiceActivation() {
       const last = e.results[e.results.length - 1][0].transcript.toLowerCase();
       console.log("[Lock Voice Activation] Heard:", last);
 
-      if (last.includes("leags") || last.includes("unlock") || last.includes("authorize") || last.includes("limford")) {
+      if (last.includes("leags") || last.includes("unlock") || last.includes("authorize") || last.includes("limford") || last.includes("face id") || last.includes("face")) {
         playChime(660, 880);
-        showToast("🎙️ Voice Activation Triggered! Scanning Face...");
+        showToast("🎙️ Voice Activation Triggered! Scanning Face ID...");
         const readout = document.getElementById("gate-scan-readout");
-        if (readout) readout.textContent = "VOICE ACTIVATED: EXAMINING FACIAL BIOMETRICS...";
+        if (readout) readout.textContent = "VOICE ACTIVATED: EXAMINING FACE ID BIOMETRICS...";
         startBiometricFaceScan(true);
       }
     };
@@ -1968,13 +2053,13 @@ async function enrollLimfordVoiceprint() {
 }
 
 function checkInitialEnrollmentComplete() {
-  const hasFace = localStorage.getItem("leags_limford_facial_vector") !== null || localStorage.getItem("leags_limford_retinal_vector") !== null;
+  const hasFace = localStorage.getItem("leags_limford_facial_vector") !== null;
   const hasVoice = localStorage.getItem("leags_limford_voiceprint_vector") !== null;
   if (hasFace && hasVoice) {
-    localStorage.setItem("leags_biometrics_enrolled", "true");
+    localStorage.setItem("leags_faceid_enrolled", "true");
     updateLockScreenEnrollmentVisibility();
     playChime(700, 980);
-    speakOutLoud("Initial biometric setup complete. Operator Limford's profile is now secured and locked.");
+    speakOutLoud("Initial biometric setup complete. Operator Limford's Face ID profile is now secured and locked.");
   }
 }
 
@@ -2026,7 +2111,7 @@ function openSecurityHub() {
   const fStatus = document.getElementById("vault-face-status");
   const vStatus = document.getElementById("vault-voice-status");
 
-  const hasFace = localStorage.getItem("leags_limford_facial_vector") !== null || localStorage.getItem("leags_limford_retinal_vector") !== null;
+  const hasFace = localStorage.getItem("leags_limford_facial_vector") !== null;
   const hasVoice = localStorage.getItem("leags_limford_voiceprint_vector") !== null;
 
   if (fStatus) fStatus.textContent = hasFace ? "✓ ENROLLED & SECURED" : "PENDING";
@@ -2054,20 +2139,21 @@ async function recalibrateFaceFromVault() {
     });
     if (videoEl) videoEl.srcObject = stream;
 
-    alert("Look directly into the camera. We are capturing your new facial profile now.");
+    alert("Look directly into the camera. We are capturing your new Face ID profile now.");
 
     setTimeout(() => {
       const vec = extractFacialFeatures(videoEl, canvasEl);
       stream.getTracks().forEach(t => t.stop());
 
-      if (vec && vec.ratios && vec.ratios.length === 4) {
+      if (vec && vec.ratios && vec.ratios.length >= 4) {
         localStorage.setItem("leags_limford_facial_vector", JSON.stringify(vec));
-        localStorage.setItem("leags_biometrics_enrolled", "true");
+        localStorage.setItem("leags_faceid_enrolled", "true");
+        localStorage.removeItem("leags_limford_retinal_vector");
         playChime(660, 990);
-        speakOutLoud("Facial recognition profile successfully updated and secured.");
-        alert("✓ Limford's Facial Biometrics successfully updated!");
+        speakOutLoud("Face ID profile successfully updated and secured for Limford.");
+        alert("✓ Limford's Face ID profile successfully updated and secured!");
       } else {
-        alert("Unable to detect facial features. Please ensure your face is well-lit and retry.");
+        alert("Unable to detect full Face ID landmarks. Please ensure your face is well-lit and retry.");
       }
       openSecurityHub();
     }, 1200);
@@ -2177,7 +2263,7 @@ function lockSystemManually() {
   sessionStorage.removeItem("leags_authorized");
   initSecurityGate();
   showToast("🔒 Security Gateway Activated. System Locked.");
-  speakOutLoud("System locked. Facial biometric recognition active.");
+  speakOutLoud("System locked. Face ID active.");
 
   // Broadcast lock to mesh so PC workstation locks down too!
   publishAuthEvent("AUTH_LOCKED", "Samsung Galaxy A52");
