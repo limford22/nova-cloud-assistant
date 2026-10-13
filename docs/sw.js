@@ -1,5 +1,5 @@
-// Leags PWA Service Worker - v10 (Hands-Free Camera, Call HUD, Background Keep-Alive & High-Discrimination Face ID)
-const CACHE_NAME = 'leags-cache-v10';
+// Leags PWA Service Worker - v11 (Human Companion UI, One-Time Enrollment & Organic AI Orb)
+const CACHE_NAME = 'leags-cache-v11';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();

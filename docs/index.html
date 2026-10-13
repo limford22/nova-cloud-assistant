@@ -3,26 +3,28 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="theme-color" content="#070a13">
+  <meta name="theme-color" content="#07090e">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>Leags AI Hub</title>
+  <meta name="apple-mobile-web-app-title" content="Leags">
+  <title>Leags Companion</title>
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" href="icon.png">
+  <link rel="apple-touch-icon" href="icon.png">
   <script src="mqtt.min.js"></script>
   <style>
     :root {
-      --bg-main: #070a13;
-      --bg-card: rgba(15, 23, 42, 0.88);
+      --bg-main: #07090e;
+      --bg-card: rgba(15, 23, 42, 0.78);
       --border-subtle: rgba(255, 255, 255, 0.08);
-      --border-active: rgba(99, 102, 241, 0.45);
-      --primary: #6366f1;
-      --primary-glow: rgba(99, 102, 241, 0.4);
+      --border-active: rgba(139, 92, 246, 0.45);
+      --primary: #8b5cf6;
+      --primary-glow: rgba(139, 92, 246, 0.4);
       --cyan: #06b6d4;
       --cyan-glow: rgba(6, 182, 212, 0.4);
       --success: #10b981;
       --warning: #f59e0b;
-      --danger: #ef4444;
+      --danger: #f43f5e;
       --text-main: #f8fafc;
       --text-muted: #94a3b8;
       --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -925,12 +927,12 @@
     }
 
     .bio-gate-modal {
-      background: rgba(11, 19, 36, 0.96);
-      border: 1px solid rgba(6, 182, 212, 0.5);
-      box-shadow: 0 0 50px rgba(6, 182, 212, 0.25), inset 0 0 30px rgba(6, 182, 212, 0.08);
+      background: rgba(15, 23, 42, 0.90);
+      border: 1px solid rgba(139, 92, 246, 0.35);
+      box-shadow: 0 15px 50px rgba(0, 0, 0, 0.65), 0 0 35px rgba(139, 92, 246, 0.2);
       border-radius: 28px;
       width: 100%;
-      max-width: 420px;
+      max-width: 400px;
       padding: 24px 20px;
       display: flex;
       flex-direction: column;
@@ -939,36 +941,36 @@
       text-align: center;
       position: relative;
       overflow: hidden;
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
     }
 
     .bio-gate-glow-badge {
-      font-size: 0.65rem;
-      letter-spacing: 0.18em;
-      font-weight: 800;
-      color: #06b6d4;
-      text-transform: uppercase;
-      background: rgba(6, 182, 212, 0.12);
-      border: 1px solid rgba(6, 182, 212, 0.35);
-      padding: 4px 12px;
+      font-size: 0.68rem;
+      letter-spacing: 0.04em;
+      font-weight: 700;
+      color: #c4b5fd;
+      background: rgba(139, 92, 246, 0.15);
+      border: 1px solid rgba(139, 92, 246, 0.35);
+      padding: 4px 14px;
       border-radius: 20px;
       display: inline-block;
-      margin-bottom: 4px;
+      margin-bottom: 2px;
     }
 
     .bio-gate-title {
-      font-size: 1.25rem;
+      font-size: 1.35rem;
       font-weight: 800;
       color: #f8fafc;
-      letter-spacing: -0.01em;
+      letter-spacing: -0.02em;
       margin-bottom: 2px;
     }
 
     .bio-gate-sub {
-      font-size: 0.70rem;
+      font-size: 0.74rem;
       color: #94a3b8;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-      margin-bottom: 6px;
+      letter-spacing: 0.01em;
+      margin-bottom: 4px;
     }
 
     .bio-operator-tag {
@@ -976,25 +978,25 @@
       align-items: center;
       justify-content: center;
       gap: 8px;
-      background: rgba(15, 23, 42, 0.8);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      padding: 6px 14px;
-      border-radius: 12px;
-      font-size: 0.75rem;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 5px 14px;
+      border-radius: 20px;
+      font-size: 0.74rem;
       color: #e2e8f0;
     }
 
     .bio-operator-tag strong {
-      color: #67e8f9;
+      color: #c4b5fd;
     }
 
     .clearance-level {
-      background: rgba(16, 185, 129, 0.2);
+      background: rgba(16, 185, 129, 0.15);
       color: #34d399;
-      border: 1px solid rgba(16, 185, 129, 0.4);
+      border: 1px solid rgba(16, 185, 129, 0.35);
       font-size: 0.65rem;
       font-weight: 700;
-      padding: 2px 6px;
+      padding: 2px 7px;
       border-radius: 6px;
     }
 
@@ -1017,9 +1019,10 @@
       display: flex;
       gap: 6px;
       width: 100%;
-      background: rgba(15, 23, 42, 0.6);
+      background: rgba(255, 255, 255, 0.04);
       padding: 4px;
-      border-radius: 14px;
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
     }
 
     .bio-tab-btn {
@@ -1027,18 +1030,19 @@
       background: transparent;
       border: none;
       color: #94a3b8;
-      padding: 8px 4px;
-      font-size: 0.70rem;
+      padding: 8px 6px;
+      font-size: 0.74rem;
       font-weight: 700;
-      border-radius: 10px;
+      border-radius: 12px;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 0.2s ease;
     }
 
     .bio-tab-btn.active {
-      background: rgba(6, 182, 212, 0.2);
-      color: #67e8f9;
-      border: 1px solid rgba(6, 182, 212, 0.4);
+      background: rgba(139, 92, 246, 0.22);
+      color: #c4b5fd;
+      border: 1px solid rgba(139, 92, 246, 0.45);
+      box-shadow: 0 2px 8px rgba(139, 92, 246, 0.2);
     }
 
     .bio-mode-content {
@@ -1050,51 +1054,62 @@
     }
 
     .bio-scanner-frame {
+      display: none;
+    }
+
+    .cyber-bracket {
+      display: none !important;
+    }
+
+    /* Organic Glance Viewfinder */
+    .glance-viewfinder-wrap {
       position: relative;
-      width: 175px;
-      height: 175px;
+      width: 190px;
+      height: 240px;
       display: flex;
       align-items: center;
       justify-content: center;
       margin: 4px 0;
     }
 
-    .cyber-bracket {
+    .glance-aura-ring {
       position: absolute;
-      width: 18px;
-      height: 18px;
-      border-color: #06b6d4;
-      border-style: solid;
+      inset: -8px;
+      border-radius: 48px;
+      background: radial-gradient(circle, rgba(139, 92, 246, 0.35) 0%, rgba(6, 182, 212, 0.25) 50%, transparent 70%);
+      filter: blur(12px);
+      animation: glanceAuraPulse 3s infinite alternate ease-in-out;
       pointer-events: none;
     }
-    .cyber-bracket.top-left { top: 0; left: 0; border-width: 3px 0 0 3px; }
-    .cyber-bracket.top-right { top: 0; right: 0; border-width: 3px 3px 0 0; }
-    .cyber-bracket.bottom-left { bottom: 0; left: 0; border-width: 0 0 3px 3px; }
-    .cyber-bracket.bottom-right { bottom: 0; right: 0; border-width: 0 3px 3px 0; }
+
+    @keyframes glanceAuraPulse {
+      0% { transform: scale(0.96); opacity: 0.6; }
+      100% { transform: scale(1.08); opacity: 1; }
+    }
 
     .viewfinder-face, .viewfinder-circle {
-      width: 175px;
-      height: 230px;
-      border-radius: 46px;
+      width: 190px;
+      height: 240px;
+      border-radius: 42px;
       position: relative;
       overflow: hidden;
       background: #020617;
-      border: 2px dashed rgba(6, 182, 212, 0.65);
-      box-shadow: 0 0 32px rgba(6, 182, 212, 0.35);
+      border: 2px solid rgba(139, 92, 246, 0.45);
+      box-shadow: 0 0 25px rgba(139, 92, 246, 0.25);
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: all 0.4s ease;
+      transition: all 0.35s ease;
     }
 
     .viewfinder-face.verified, .viewfinder-circle.verified {
       border: 2px solid #10b981 !important;
-      box-shadow: 0 0 40px rgba(16, 185, 129, 0.65) !important;
+      box-shadow: 0 0 35px rgba(16, 185, 129, 0.65) !important;
     }
 
     .viewfinder-face.denied, .viewfinder-circle.denied {
-      border: 2px solid #ef4444 !important;
-      box-shadow: 0 0 40px rgba(239, 68, 68, 0.65) !important;
+      border: 2px solid #f43f5e !important;
+      box-shadow: 0 0 35px rgba(244, 63, 94, 0.65) !important;
     }
 
     .viewfinder-face video, .viewfinder-circle video {
@@ -1111,22 +1126,10 @@
     }
 
     .laser-scanner {
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      height: 3px;
-      background: #22d3ee;
-      box-shadow: 0 0 15px #22d3ee;
-      animation: laserSweep 1.8s infinite alternate ease-in-out;
-      display: none;
-      z-index: 10;
+      display: none !important;
     }
 
-    @keyframes laserSweep {
-      0% { top: 6%; }
-      100% { top: 94%; }
-    }
-
-    /* 3D Facial Landmark Tracking Matrix HUD */
+    /* Dotted Human Facial Focus Contour */
     .facial-hud-matrix {
       position: absolute;
       inset: 0;
@@ -1139,11 +1142,11 @@
 
     .face-box-overlay {
       position: absolute;
-      width: 130px;
-      height: 175px;
-      border: 1.5px dashed rgba(34, 211, 238, 0.55);
-      border-radius: 32px;
-      box-shadow: inset 0 0 16px rgba(6, 182, 212, 0.2);
+      width: 135px;
+      height: 180px;
+      border: 1.5px dashed rgba(255, 255, 255, 0.32);
+      border-radius: 46px;
+      box-shadow: inset 0 0 16px rgba(139, 92, 246, 0.15);
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -1151,41 +1154,42 @@
       transition: all 0.3s ease;
     }
 
+    .viewfinder-face.verified .face-box-overlay {
+      border: 2px solid #10b981;
+      box-shadow: inset 0 0 20px rgba(16, 185, 129, 0.3);
+    }
+
     .face-eye-box {
       position: absolute;
       top: 42px;
-      width: 28px;
+      width: 26px;
       height: 22px;
-      border: 1.5px solid rgba(6, 182, 212, 0.75);
-      border-radius: 6px;
+      border: 1px dashed rgba(255, 255, 255, 0.4);
+      border-radius: 8px;
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: 0.65rem;
-      background: rgba(6, 182, 212, 0.1);
-      box-shadow: 0 0 8px rgba(6, 182, 212, 0.3);
+      background: rgba(255, 255, 255, 0.05);
     }
-    .face-eye-box.left { left: 20px; }
-    .face-eye-box.right { right: 20px; }
+    .face-eye-box.left { left: 22px; }
+    .face-eye-box.right { right: 22px; }
 
     .face-nose-target {
       position: absolute;
-      top: 82px;
-      width: 8px;
-      height: 8px;
+      top: 86px;
+      width: 6px;
+      height: 6px;
       border-radius: 50%;
-      background: rgba(34, 211, 238, 0.85);
-      box-shadow: 0 0 10px #22d3ee;
+      background: rgba(255, 255, 255, 0.5);
     }
 
     .face-mouth-bracket {
       position: absolute;
-      bottom: 32px;
-      width: 48px;
-      height: 14px;
-      border-bottom: 2px solid rgba(34, 211, 238, 0.75);
-      border-left: 1.5px solid rgba(34, 211, 238, 0.4);
-      border-right: 1.5px solid rgba(34, 211, 238, 0.4);
+      bottom: 34px;
+      width: 44px;
+      height: 12px;
+      border-bottom: 1.5px dashed rgba(255, 255, 255, 0.4);
       border-radius: 0 0 8px 8px;
     }
 
@@ -1193,29 +1197,21 @@
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      background: rgba(99, 102, 241, 0.16);
-      border: 1px solid rgba(99, 102, 241, 0.45);
-      color: #a5b4fc;
+      background: rgba(139, 92, 246, 0.15);
+      border: 1px solid rgba(139, 92, 246, 0.35);
+      color: #c4b5fd;
       font-size: 0.72rem;
       font-weight: 700;
-      padding: 6px 12px;
+      padding: 6px 14px;
       border-radius: 20px;
       margin: 4px 0;
       cursor: pointer;
+      transition: all 0.2s ease;
     }
 
-    .call-action-card {
-      background: rgba(15, 23, 42, 0.95);
-      border: 1px solid rgba(6, 182, 212, 0.4);
-      border-radius: 12px;
-      padding: 10px 14px;
-      margin-top: 8px;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-      text-align: left;
+    .voice-activation-pill:hover {
+      background: rgba(139, 92, 246, 0.25);
     }
-      to { transform: rotate(360deg); }
-    }
-
 
     .bio-progress-container {
       width: 90%;
@@ -1228,7 +1224,7 @@
     .bio-progress-track {
       width: 100%;
       height: 6px;
-      background: rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.08);
       border-radius: 10px;
       overflow: hidden;
     }
@@ -1236,32 +1232,238 @@
     .bio-progress-fill {
       height: 100%;
       width: 0%;
-      background: linear-gradient(90deg, #06b6d4, #10b981);
+      background: linear-gradient(90deg, #8b5cf6, #06b6d4, #10b981);
       border-radius: 10px;
       transition: width 0.3s ease;
     }
 
     .bio-scan-readout {
-      font-size: 0.72rem;
-      font-weight: 700;
-      letter-spacing: 0.06em;
-      color: #38bdf8;
-      text-transform: uppercase;
+      font-size: 0.74rem;
+      font-weight: 600;
+      color: #cbd5e1;
     }
 
     .btn-bio-verify {
-      background: linear-gradient(135deg, #06b6d4, #6366f1);
+      background: linear-gradient(135deg, #8b5cf6, #06b6d4);
       border: none;
       color: #fff;
-      font-weight: 800;
-      font-size: 0.82rem;
-      letter-spacing: 0.05em;
+      font-weight: 700;
+      font-size: 0.85rem;
       padding: 12px 20px;
-      border-radius: 14px;
+      border-radius: 16px;
       cursor: pointer;
-      box-shadow: 0 4px 20px rgba(6, 182, 212, 0.4);
-      transition: all 0.2s;
+      box-shadow: 0 4px 20px rgba(139, 92, 246, 0.35);
+      transition: all 0.2s ease;
       width: 100%;
+    }
+    .btn-bio-verify:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 24px rgba(139, 92, 246, 0.5);
+    }
+    .btn-bio-verify:active {
+      transform: scale(0.97);
+    }
+
+    /* ================= LIVING HUMAN AI COMPANION ORB STYLES ================= */
+    .human-companion-hero {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 18px 14px 10px;
+      position: relative;
+      text-align: center;
+      transition: all 0.4s ease;
+    }
+
+    .human-orb-wrapper {
+      position: relative;
+      width: 130px;
+      height: 130px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      margin-bottom: 10px;
+    }
+
+    .human-orb-halo {
+      position: absolute;
+      inset: -14px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(139, 92, 246, 0.4) 0%, rgba(6, 182, 212, 0.22) 45%, transparent 70%);
+      filter: blur(16px);
+      animation: haloBreathe 4s infinite alternate ease-in-out;
+      pointer-events: none;
+    }
+
+    .human-orb-core {
+      position: relative;
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #c084fc 0%, #8b5cf6 35%, #3b82f6 68%, #06b6d4 100%);
+      box-shadow: 
+        0 0 45px rgba(139, 92, 246, 0.5),
+        0 0 20px rgba(6, 182, 212, 0.4),
+        inset 0 0 22px rgba(255, 255, 255, 0.45);
+      animation: orbFloat 5s infinite ease-in-out;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+      overflow: hidden;
+    }
+
+    .human-orb-core::before {
+      content: '';
+      position: absolute;
+      top: 10%;
+      left: 18%;
+      width: 35%;
+      height: 25%;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0) 100%);
+      transform: rotate(-30deg);
+      pointer-events: none;
+    }
+
+    .human-orb-inner {
+      position: absolute;
+      inset: 10px;
+      border-radius: 50%;
+      background: conic-gradient(from 180deg at 50% 50%, #f43f5e, #8b5cf6, #06b6d4, #10b981, #f59e0b, #f43f5e);
+      filter: blur(8px);
+      opacity: 0.85;
+      animation: orbRotate 6s infinite linear;
+    }
+
+    .orb-pulse-ring {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      border: 1.5px solid rgba(139, 92, 246, 0.4);
+      pointer-events: none;
+      opacity: 0;
+    }
+
+    /* Orb Listening State */
+    .human-orb-core.listening, .human-companion-hero.listening .human-orb-core {
+      transform: scale(1.15);
+      box-shadow: 
+        0 0 60px rgba(6, 182, 212, 0.75),
+        0 0 35px rgba(139, 92, 246, 0.6),
+        inset 0 0 28px rgba(255, 255, 255, 0.6);
+      animation: orbListeningPulse 1.2s infinite alternate ease-in-out;
+    }
+
+    .human-companion-hero.listening .orb-pulse-ring.ring-1 {
+      animation: pulseRingOut 1.8s infinite cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+    .human-companion-hero.listening .orb-pulse-ring.ring-2 {
+      animation: pulseRingOut 1.8s infinite 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    /* Orb Speaking State */
+    .human-orb-core.speaking, .human-companion-hero.speaking .human-orb-core {
+      transform: scale(1.08);
+      box-shadow: 
+        0 0 50px rgba(244, 63, 94, 0.65),
+        0 0 30px rgba(245, 158, 11, 0.5),
+        inset 0 0 28px rgba(255, 255, 255, 0.6);
+      animation: orbSpeakingRipple 0.8s infinite alternate ease-in-out;
+    }
+
+    /* Orb Thinking State */
+    .human-orb-core.thinking, .human-companion-hero.thinking .human-orb-core {
+      animation: orbThinkingRotate 1.2s infinite linear;
+    }
+
+    @keyframes orbFloat {
+      0%, 100% { transform: translateY(0px) scale(1); }
+      50% { transform: translateY(-6px) scale(1.03); }
+    }
+
+    @keyframes haloBreathe {
+      0% { transform: scale(0.95); opacity: 0.6; }
+      100% { transform: scale(1.18); opacity: 0.95; }
+    }
+
+    @keyframes orbRotate {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    @keyframes orbListeningPulse {
+      0% { transform: scale(1.1); filter: brightness(1.05); }
+      100% { transform: scale(1.22); filter: brightness(1.25); }
+    }
+
+    @keyframes orbSpeakingRipple {
+      0% { transform: scale(1.02); filter: hue-rotate(0deg); }
+      100% { transform: scale(1.14); filter: hue-rotate(45deg); }
+    }
+
+    @keyframes orbThinkingRotate {
+      0% { transform: rotate(0deg) scale(1.04); }
+      100% { transform: rotate(360deg) scale(1.04); }
+    }
+
+    @keyframes pulseRingOut {
+      0% { transform: scale(0.85); opacity: 0.8; border-color: rgba(6, 182, 212, 0.8); }
+      100% { transform: scale(1.85); opacity: 0; border-color: rgba(139, 92, 246, 0.2); }
+    }
+
+    .human-orb-caption {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .human-orb-caption h3 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #f8fafc;
+      letter-spacing: -0.01em;
+    }
+
+    .human-orb-caption p {
+      font-size: 0.78rem;
+      color: #94a3b8;
+      font-weight: 500;
+    }
+
+    .human-quick-chips {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      max-width: 100%;
+      padding: 10px 4px 4px;
+      scrollbar-width: none;
+    }
+    .human-quick-chips::-webkit-scrollbar { display: none; }
+
+    .human-chip {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #e2e8f0;
+      font-size: 0.74rem;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 20px;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .human-chip:hover, .human-chip:active {
+      background: rgba(139, 92, 246, 0.2);
+      border-color: rgba(139, 92, 246, 0.4);
+      color: #c4b5fd;
+      transform: translateY(-1px);
     }
 
     .btn-bio-verify:active {
@@ -1403,13 +1605,13 @@
   <div id="mandatory-security-gate" class="bio-gate-overlay">
     <div class="bio-gate-modal">
       <div class="bio-gate-header">
-        <div class="bio-gate-glow-badge">SECURITY PROTOCOL OMEGA</div>
-        <h2 class="bio-gate-title">LEAGS IDENTITY CLEARANCE</h2>
-        <p class="bio-gate-sub">BIOMETRIC VERIFICATION REQUIRED BEFORE ACCESS</p>
+        <div class="bio-gate-glow-badge">✨ Warm Companion Security</div>
+        <h2 class="bio-gate-title">Welcome back, Limford</h2>
+        <p class="bio-gate-sub">Glance at camera or speak to wake</p>
         <div class="bio-operator-tag">
           <span class="pulse-dot"></span>
-          <span>OPERATOR: <strong>LIMFORD</strong></span>
-          <span class="clearance-level">LEVEL 1 ALPHA</span>
+          <span>Limford</span>
+          <span class="clearance-level">Protected</span>
         </div>
         <div id="gate-enrollment-status-pill" style="font-size: 0.72rem; padding: 4px 10px; border-radius: 12px; margin-top: 6px; display: inline-flex; align-items: center; gap: 6px;"></div>
       </div>
@@ -1417,30 +1619,26 @@
       <!-- Mode Selector Tabs (Strict Biometrics Only - No PIN) -->
       <div class="bio-mode-tabs">
         <button class="bio-tab-btn active" id="tab-btn-facial" onclick="switchBioMode('facial')">
-          <span>👤 Face ID</span>
+          <span>✨ Face ID Glance</span>
         </button>
         <button class="bio-tab-btn" id="tab-btn-voice" onclick="switchBioMode('voice')">
-          <span>🎙️ Voiceprint Acoustic</span>
+          <span>🎙️ Voiceprint</span>
         </button>
       </div>
 
       <!-- Mode 1: 3D Face ID View with Voice Activation -->
       <div class="bio-mode-content" id="bio-mode-facial">
-        <div class="bio-scanner-frame" style="width: 210px; height: 260px;">
-          <div class="cyber-bracket top-left"></div>
-          <div class="cyber-bracket top-right"></div>
-          <div class="cyber-bracket bottom-left"></div>
-          <div class="cyber-bracket bottom-right"></div>
-
+        <div class="glance-viewfinder-wrap">
+          <div class="glance-aura-ring"></div>
           <div class="viewfinder-face" id="gate-viewfinder">
             <video id="gate-camera-feed" autoplay playsinline muted></video>
-            <div class="laser-scanner" id="gate-laser"></div>
+            <div class="laser-scanner" id="gate-laser" style="display: none;"></div>
 
-            <!-- 3D Facial HUD Targeting Matrix -->
+            <!-- Dotted Human Facial Focus HUD -->
             <div class="facial-hud-matrix" id="gate-facial-hud">
               <div class="face-box-overlay" id="gate-face-box">
-                <div class="face-eye-box left" id="gate-eye-left">👁️</div>
-                <div class="face-eye-box right" id="gate-eye-right">👁️</div>
+                <div class="face-eye-box left" id="gate-eye-left">✨</div>
+                <div class="face-eye-box right" id="gate-eye-right">✨</div>
                 <div class="face-nose-target" id="gate-nose-target"></div>
                 <div class="face-mouth-bracket" id="gate-mouth-target"></div>
               </div>
@@ -1450,23 +1648,23 @@
 
         <div class="voice-activation-pill" id="gate-voice-active-indicator" onclick="triggerVoiceActivationPrompt()">
           <span class="pulse-dot"></span>
-          <span>🎙️ Voice Active: Say <strong>"Wake up"</strong> or <strong>"Face ID"</strong></span>
+          <span>🎙️ Hands-Free: Say <strong>"Wake up"</strong> or <strong>"Hey Leags"</strong></span>
         </div>
 
         <div class="bio-progress-container">
           <div class="bio-progress-track">
             <div class="bio-progress-fill" id="gate-scan-fill"></div>
           </div>
-          <div class="bio-scan-readout" id="gate-scan-readout">STANDBY: POSITION FACE FOR FACE ID</div>
+          <div class="bio-scan-readout" id="gate-scan-readout">Glance directly at camera to unlock</div>
         </div>
 
         <div class="bio-gate-actions" style="width: 100%; display: flex; flex-direction: column; gap: 8px;">
           <button class="btn-bio-verify" id="btn-start-face-scan" onclick="startBiometricFaceScan(false)">
-            ⚡ VERIFY FACE ID (VOICE-ACTIVATED)
+            ✨ Glance to Unlock
           </button>
           <div id="lock-screen-first-time-enroll-face" style="width: 100%; display: none;">
-            <button type="button" class="btn-bio-enroll" onclick="openEnrollmentWizard('face')" style="width: 100%; background: linear-gradient(135deg, rgba(6, 182, 212, 0.22), rgba(99, 102, 241, 0.22)); border: 1px solid rgba(6, 182, 212, 0.45); color: #67e8f9; font-size: 0.78rem; font-weight: 700; padding: 10px 12px; border-radius: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 2px 10px rgba(6,182,212,0.15);">
-              👤 First-Time Setup: Enroll Limford's ID
+            <button type="button" class="btn-bio-enroll" onclick="openEnrollmentWizard('face')" style="width: 100%; background: linear-gradient(135deg, rgba(139, 92, 246, 0.22), rgba(6, 182, 212, 0.22)); border: 1px solid rgba(139, 92, 246, 0.45); color: #c4b5fd; font-size: 0.78rem; font-weight: 700; padding: 10px 12px; border-radius: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 2px 10px rgba(139, 92, 246, 0.2);">
+              ✨ First-Time Setup: Enroll Limford's ID
             </button>
           </div>
         </div>
@@ -1488,13 +1686,13 @@
           Speak operator passphrase clearly:<br>
           <strong style="color: #67e8f9;">"I am Limford, authorize Leags."</strong>
         </p>
-        <div class="bio-scan-readout" id="gate-voice-readout">ACOUSTIC FFT SENSOR READY</div>
+        <div class="bio-scan-readout" id="gate-voice-readout">Ready to listen for passphrase</div>
         <div class="bio-gate-actions" style="width: 100%; display: flex; flex-direction: column; gap: 8px;">
           <button class="btn-bio-verify" id="btn-start-voice-scan" onclick="startGateVoiceVerify()">
-            🎙️ EXAMINE VOICE FREQUENCIES
+            🎙️ Listen for Voiceprint
           </button>
           <div id="lock-screen-first-time-enroll-voice" style="width: 100%; display: none;">
-            <button type="button" class="btn-bio-enroll" onclick="openEnrollmentWizard('voice')" style="width: 100%; background: linear-gradient(135deg, rgba(16, 185, 129, 0.22), rgba(6, 182, 212, 0.22)); border: 1px solid rgba(16, 185, 129, 0.45); color: #6ee7b7; font-size: 0.78rem; font-weight: 700; padding: 10px 12px; border-radius: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 2px 10px rgba(16,185,129,0.15);">
+            <button type="button" class="btn-bio-enroll" onclick="openEnrollmentWizard('voice')" style="width: 100%; background: linear-gradient(135deg, rgba(16, 185, 129, 0.22), rgba(6, 182, 212, 0.22)); border: 1px solid rgba(16, 185, 129, 0.45); color: #6ee7b7; font-size: 0.78rem; font-weight: 700; padding: 10px 12px; border-radius: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 2px 10px rgba(16,185,129,0.15);">
               🎙️ First-Time Setup: Enroll Voiceprint
             </button>
           </div>
@@ -1655,11 +1853,13 @@
   <!-- Top Glass Header -->
   <header>
     <div class="brand">
-      <div class="brand-avatar">L</div>
+      <div class="brand-avatar" style="overflow: hidden; padding: 2px; background: linear-gradient(135deg, #8b5cf6, #06b6d4); box-shadow: 0 0 16px rgba(139, 92, 246, 0.4);">
+        <img src="icon.png" alt="Leags" style="width: 100%; height: 100%; border-radius: 10px; object-fit: cover;">
+      </div>
       <div class="brand-text">
-        <h2>Leags Hub</h2>
+        <h2>Leags Companion</h2>
         <span class="subtext">
-          <span>Dual-Device Mesh</span>
+          <span>Dual-Device Intelligence</span>
           <span class="specs-badge" id="pc-specs-badge">Intel i7 &bull; 16GB</span>
         </span>
       </div>
@@ -1880,18 +2080,36 @@
 
     <!-- ================= TAB 2: AI ASSISTANT ================= -->
     <section class="tab-pane" id="tab-chat" style="display: none;">
+      <!-- Living Human AI Companion Hero -->
+      <div class="human-companion-hero" id="human-companion-hero">
+        <div class="human-orb-wrapper" onclick="triggerOrbInteraction()" title="Tap to speak with Leags">
+          <div class="human-orb-halo"></div>
+          <div class="orb-pulse-ring ring-1"></div>
+          <div class="orb-pulse-ring ring-2"></div>
+          <div class="human-orb-core" id="human-ai-orb">
+            <div class="human-orb-inner"></div>
+          </div>
+        </div>
+        <div class="human-orb-caption">
+          <h3 id="orb-greeting">Hi Limford, I'm Leags</h3>
+          <p id="human-orb-status">I'm listening and ready to assist</p>
+        </div>
+        <div class="human-quick-chips">
+          <button type="button" class="human-chip" onclick="handleQuickChip('Call yaw motor')">📞 Call Yaw Motor</button>
+          <button type="button" class="human-chip" onclick="handleQuickChip('Turn on hotspot')">📶 Hotspot</button>
+          <button type="button" class="human-chip" onclick="handleQuickChip('Lock my PC')">🔒 Lock PC</button>
+          <button type="button" class="human-chip" onclick="handleQuickChip('Mute')">🔇 Mute</button>
+          <button type="button" class="human-chip" onclick="handleQuickChip('Open Spotify')">🎵 Spotify</button>
+          <button type="button" class="human-chip" onclick="handleQuickChip('Set timer for 5 minutes')">⏱️ 5m Timer</button>
+          <button type="button" class="human-chip" onclick="handleQuickChip('What is my battery status?')">⚡ Battery</button>
+        </div>
+      </div>
+
       <div id="chat-messages" class="chat-messages">
         <div class="chat-bubble assistant">
           👋 <strong>Hi Limford! I am Leags.</strong><br>
-          Hands-free active dual-device assistant. Speak or type:
-          <ul style="margin-left: 20px; margin-top: 6px;">
-            <li><em>"Call yaw motor"</em> or <em>"Call [contact/number]"</em></li>
-            <li><em>"WhatsApp yaw motor [message]"</em> or <em>"Text [name]"</em></li>
-            <li><em>"Set timer for 5 minutes"</em> or <em>"Countdown 30 seconds"</em></li>
-            <li><em>"Turn on hotspot"</em> or <em>"Ring my phone"</em></li>
-            <li><em>"Lock my PC"</em>, <em>"Mute"</em>, or <em>"Open Spotify"</em></li>
-            <li><em>"What is my battery status?"</em></li>
-          </ul>
+          Your hands-free warm companion with equal powers on your PC and Samsung Galaxy.<br>
+          Speak naturally anytime: <em>"Hey Leags"</em> or <em>"Wake up"</em>.
         </div>
       </div>
 
@@ -2203,6 +2421,6 @@
   <div id="toast" class="toast"></div>
 
   <!-- App Script with Cache-Busting -->
-  <script src="app.js?v=faceid-v10"></script>
+  <script src="app.js?v=faceid-v11"></script>
 </body>
 </html>

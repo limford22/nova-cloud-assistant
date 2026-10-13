@@ -88,6 +88,49 @@ function playChime(freq1 = 587.33, freq2 = 880) {
 
 let isSpeakingAudio = false;
 
+// ================= LIVING HUMAN AI COMPANION ORB CONTROLS =================
+function setOrbState(state, caption = null) {
+  const orb = document.getElementById("human-ai-orb");
+  const captionEl = document.getElementById("human-orb-status");
+  const heroEl = document.getElementById("human-companion-hero");
+  if (!orb) return;
+
+  orb.classList.remove("listening", "speaking", "thinking");
+  if (heroEl) heroEl.classList.remove("listening", "speaking", "thinking");
+
+  if (state === "listening") {
+    orb.classList.add("listening");
+    if (heroEl) heroEl.classList.add("listening");
+    if (captionEl) captionEl.textContent = caption || "Listening to you, Limford...";
+  } else if (state === "speaking") {
+    orb.classList.add("speaking");
+    if (heroEl) heroEl.classList.add("speaking");
+    if (captionEl) captionEl.textContent = caption || "Speaking...";
+  } else if (state === "thinking") {
+    orb.classList.add("thinking");
+    if (heroEl) heroEl.classList.add("thinking");
+    if (captionEl) captionEl.textContent = caption || "Thinking...";
+  } else {
+    if (captionEl) captionEl.textContent = caption || "I'm listening and ready to assist";
+  }
+}
+
+function handleQuickChip(text) {
+  if (!text) return;
+  triggerHaptic(20);
+  const input = document.getElementById("chat-input");
+  if (input) input.value = text;
+  if (typeof processAssistantCommand === "function") {
+    processAssistantCommand(text);
+  }
+}
+
+function triggerOrbInteraction() {
+  triggerHaptic(28);
+  const btn = document.getElementById("btn-mic");
+  if (btn) btn.click();
+}
+
 // Text to Speech (TTS) Talk-Back Engine
 function speakOutLoud(text) {
   if (!voiceReplyEnabled || !('speechSynthesis' in window)) return;
@@ -101,12 +144,17 @@ function speakOutLoud(text) {
 
     utterance.onstart = () => {
       isSpeakingAudio = true;
+      setOrbState("speaking");
     };
     utterance.onend = () => {
-      setTimeout(() => { isSpeakingAudio = false; }, 400);
+      setTimeout(() => {
+        isSpeakingAudio = false;
+        setOrbState("idle");
+      }, 400);
     };
     utterance.onerror = () => {
       isSpeakingAudio = false;
+      setOrbState("idle");
     };
     
     // Pick natural english voice
@@ -1340,6 +1388,7 @@ if (SpeechRecognition) {
         playChime(660, 990); // Crisp wake-up alert without speaking over the user!
         phoneWakeState = "LISTENING_COMMAND";
         if (btnMic) btnMic.classList.add("listening");
+        setOrbState("listening", "Listening to you, Limford...");
         showToast("🎙️ Listening to Limford... Speak command");
 
         // If the user spoke the command in the same breath (e.g. "Hey Leags call yaw motor")
@@ -1347,6 +1396,7 @@ if (SpeechRecognition) {
           clearTimeout(phoneListenTimer);
           phoneWakeState = "STANDBY";
           if (btnMic) btnMic.classList.remove("listening");
+          setOrbState("thinking", "Thinking...");
           processAssistantCommand(wakeMatch.remainder);
           return;
         }
@@ -1356,6 +1406,7 @@ if (SpeechRecognition) {
         phoneListenTimer = setTimeout(() => {
           phoneWakeState = "STANDBY";
           if (btnMic) btnMic.classList.remove("listening");
+          setOrbState("idle");
         }, 7000);
       }
       return;
@@ -1365,6 +1416,7 @@ if (SpeechRecognition) {
       clearTimeout(phoneListenTimer);
       phoneWakeState = "STANDBY";
       if (btnMic) btnMic.classList.remove("listening");
+      setOrbState("thinking", "Thinking...");
       processAssistantCommand(transcript);
     }
   };
@@ -1401,6 +1453,7 @@ if (SpeechRecognition) {
       playChime(660, 990);
       phoneWakeState = "LISTENING_COMMAND";
       btnMic.classList.add("listening");
+      setOrbState("listening", "Listening to you, Limford...");
       showToast("🎙️ Listening... Speak now");
       startRecognition();
 
@@ -1408,6 +1461,7 @@ if (SpeechRecognition) {
       phoneListenTimer = setTimeout(() => {
         phoneWakeState = "STANDBY";
         btnMic.classList.remove("listening");
+        setOrbState("idle");
       }, 7000);
     });
   }
@@ -1783,32 +1837,25 @@ function updateLockScreenEnrollmentVisibility() {
   const enrolled = isBiometricsEnrolled();
 
   if (enrolled) {
-    // If enrolled and no repeated failures, hide enrollment button from lock screen
-    if (failedScanCount >= 2) {
-      if (faceEnrollBox) {
-        faceEnrollBox.style.display = "block";
-        const btn = faceEnrollBox.querySelector("button");
-        if (btn) btn.innerHTML = "✨ Recalibrate / Update Limford's Face ID";
-      }
-      if (voiceEnrollBox) voiceEnrollBox.style.display = "block";
-    } else {
-      if (faceEnrollBox) faceEnrollBox.style.display = "none";
-      if (voiceEnrollBox) voiceEnrollBox.style.display = "none";
-    }
+    // STRICT ONE-TIME ENROLLMENT LOCKDOWN:
+    // Once enrolled, NEVER surface enrollment or recalibration controls on the lock screen
+    // Recalibration is strictly restricted to the authenticated Security Vault when already unlocked.
+    if (faceEnrollBox) faceEnrollBox.style.display = "none";
+    if (voiceEnrollBox) voiceEnrollBox.style.display = "none";
 
     if (statusPill) {
       statusPill.style.display = "inline-flex";
       statusPill.style.background = "rgba(16, 185, 129, 0.15)";
       statusPill.style.border = "1px solid rgba(16, 185, 129, 0.35)";
       statusPill.style.color = "#34d399";
-      statusPill.innerHTML = `<span>🛡️</span> <span>Limford ID: <strong>Calibrated & Locked</strong></span>`;
+      statusPill.innerHTML = `<span>🛡️</span> <span>Limford ID: <strong>Secured & Active</strong></span>`;
     }
   } else {
     // FIRST-TIME ENROLLMENT ONLY (When never enrolled before)
     if (faceEnrollBox) {
       faceEnrollBox.style.display = "block";
       const btn = faceEnrollBox.querySelector("button");
-      if (btn) btn.innerHTML = "👤 First-Time Setup: Enroll Limford's ID";
+      if (btn) btn.innerHTML = "✨ First-Time Setup: Enroll Limford's ID";
     }
     if (voiceEnrollBox) voiceEnrollBox.style.display = "block";
 
@@ -1817,7 +1864,7 @@ function updateLockScreenEnrollmentVisibility() {
       statusPill.style.background = "rgba(245, 158, 11, 0.15)";
       statusPill.style.border = "1px solid rgba(245, 158, 11, 0.4)";
       statusPill.style.color = "#fbbf24";
-      statusPill.innerHTML = `<span>⚠️</span> <span>First-Time Setup Required — Tap Below</span>`;
+      statusPill.innerHTML = `<span>✨</span> <span>First-Time Setup: Tap Below to Enroll</span>`;
     }
   }
 }
@@ -2262,7 +2309,7 @@ async function startBiometricFaceScan(autoStart = false) {
         triggerHaptic([100, 50, 150]);
         if (viewfinder) viewfinder.classList.add("verified");
         if (laserEl) laserEl.style.background = "#10b981";
-        if (readoutEl) readoutEl.textContent = `✓ FACE ID CONFIRMED: LIMFORD (${pct}% MATCH // CLEARANCE GRANTED)`;
+        if (readoutEl) readoutEl.textContent = `✨ Welcome back, Limford (${pct}% match)`;
 
         if (gateCameraStream) {
           gateCameraStream.getTracks().forEach(t => t.stop());
@@ -2270,27 +2317,27 @@ async function startBiometricFaceScan(autoStart = false) {
         }
 
         setTimeout(() => {
-          completeAuthorization(`Face ID 3D Biometrics (${pct}% Match)`);
+          completeAuthorization(`Face ID Glance (${pct}% Match)`);
         }, 500);
 
       } else {
-        // Face Mismatch - Access Strictly Denied!
+        // Face Mismatch - Access Protected
         failedScanCount++;
         playBeep(180, 0.45, "sawtooth");
         triggerHaptic(200);
         if (viewfinder) viewfinder.classList.add("denied");
-        if (laserEl) laserEl.style.background = "#ef4444";
-        if (readoutEl) readoutEl.textContent = `❌ FACE ID MISMATCH (${pct}% MATCH): ACCESS DENIED`;
+        if (laserEl) laserEl.style.background = "#f43f5e";
+        if (readoutEl) readoutEl.textContent = `❌ Face not recognized (${pct}% match)`;
         if (btn) btn.disabled = false;
 
-        // If failed repeatedly, surface recalibrate option so user is never locked out
+        // If failed repeatedly, prompt voice unlock instead of surfacing recalibrate on lock screen
         if (failedScanCount >= 2) {
-          updateLockScreenEnrollmentVisibility();
-          showToast(`💡 Face ID match ${pct}%. Say 'Wake up' to use Voiceprint or recalibrate below.`);
+          showToast(`Face ID didn't recognize face (${pct}%). Say 'Wake up' or 'Hey Leags' to unlock with voice.`);
         }
 
         setTimeout(() => {
           if (viewfinder) viewfinder.classList.remove("denied");
+          if (readoutEl) readoutEl.textContent = "Glance directly at camera or speak 'Wake up'";
         }, 2200);
       }
     }
@@ -2706,19 +2753,20 @@ async function startGateVoiceVerify() {
       if (readout) readout.textContent = `✓ VOICEPRINT CONFIRMED: LIMFORD (${pct}% MATCH) // CLEARANCE GRANTED`;
       playChime(660, 990);
       triggerHaptic([100, 50, 150]);
-      setTimeout(() => completeAuthorization(`Acoustic Voiceprint (${pct}% Match)`), 400);
+      if (readout) readout.textContent = `✨ Voice confirmed: Limford (${pct}% match)`;
+      setTimeout(() => completeAuthorization(`Voiceprint (${pct}% Match)`), 400);
     } else {
       failedScanCount++;
-      if (readout) readout.textContent = `❌ VOICEPRINT MISMATCH (${pct}% MATCH): ACOUSTIC TIMBRE REJECTED // ACCESS DENIED`;
+      if (readout) readout.textContent = `❌ Voice not recognized (${pct}% match). Please speak clearly`;
       playBeep(180, 0.45, "sawtooth");
       triggerHaptic(200);
       if (failedScanCount >= 2) {
-        updateLockScreenEnrollmentVisibility();
+        showToast("Voice not recognized. Please glance at the camera or speak clearly.");
       }
     }
   } catch (err) {
     if (btn) btn.disabled = false;
-    if (readout) readout.textContent = "MICROPHONE SENSOR ERROR: PLEASE RETRY";
+    if (readout) readout.textContent = "Microphone error: Please check permissions";
   }
 }
 
@@ -2838,9 +2886,9 @@ let isWizardScanning = false;
 function openEnrollmentWizard(tab = "face") {
   triggerHaptic(20);
 
-  // STRICT LOCKSCREEN SECURITY: If already enrolled and no failures, forbid opening wizard while locked
-  if (!isBiometricVerified && isBiometricsEnrolled() && failedScanCount < 2) {
-    showToast("🔒 Locked: Identity can only be updated from Vault when unlocked!", false);
+  // STRICT LOCKSCREEN SECURITY: If already enrolled, forbid opening wizard while locked
+  if (!isBiometricVerified && isBiometricsEnrolled()) {
+    showToast("🔒 Locked: Identity can only be updated from Security Vault when unlocked!", false);
     speakOutLoud("Access denied. Identity can only be updated when unlocked.");
     return;
   }
