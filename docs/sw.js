@@ -1,5 +1,5 @@
-// Leags PWA Service Worker - v11 (Human Companion UI, One-Time Enrollment & Organic AI Orb)
-const CACHE_NAME = 'leags-cache-v11';
+// Leags PWA Service Worker - v12 (Instant PC Workstation Unlock & Cross-Device Mesh)
+const CACHE_NAME = 'leags-cache-v12';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();

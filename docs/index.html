@@ -1703,6 +1703,16 @@
         <span>🔄</span>
         <span>Cross-device clearance: Unlocking on Phone unlocks PC, and vice-versa.</span>
       </div>
+
+      <!-- Quick Workstation & Cross-Device Access Buttons -->
+      <div id="lock-screen-quick-access" style="width: 100%; display: flex; flex-direction: column; gap: 8px; margin-top: 10px;">
+        <button type="button" class="btn-bio-verify" id="btn-unlock-workstation" onclick="completeAuthorization('Operator Workstation Instant Access')" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.9), rgba(6, 182, 212, 0.9)); border: 1px solid rgba(16, 185, 129, 0.5); box-shadow: 0 4px 15px rgba(16, 185, 129, 0.35); font-size: 0.84rem;">
+          💻 Unlock Workstation (Operator Limford)
+        </button>
+        <button type="button" class="btn-bio-verify" id="btn-unlock-phone" onclick="unlockViaPhoneMesh()" style="background: rgba(30, 41, 59, 0.85); border: 1px solid rgba(255, 255, 255, 0.15); color: #cbd5e1; font-size: 0.78rem; padding: 10px 14px;">
+          📱 Unlock via Samsung Galaxy Phone
+        </button>
+      </div>
     </div>
   </div>
 
@@ -2421,6 +2431,6 @@
   <div id="toast" class="toast"></div>
 
   <!-- App Script with Cache-Busting -->
-  <script src="app.js?v=faceid-v11"></script>
+  <script src="app.js?v=faceid-v12"></script>
 </body>
 </html>

@@ -429,7 +429,7 @@ function publishAuthEvent(type, device) {
     try {
       const payload = {
         type: type,
-        device: device || "Samsung Galaxy A52",
+        device: device || (isMobilePhone() ? "Samsung Galaxy A52" : "Windows PC"),
         user: "Limford",
         time: Date.now()
       };
@@ -437,6 +437,17 @@ function publishAuthEvent(type, device) {
     } catch (e) {}
   }
 }
+
+function unlockViaPhoneMesh() {
+  const readoutFace = document.getElementById("gate-scan-readout");
+  const readoutVoice = document.getElementById("gate-voice-readout");
+  const msg = "📱 Waiting for cross-device unlock... (Unlock on phone or tap 'Unlock Workstation')";
+  if (readoutFace) readoutFace.textContent = msg;
+  if (readoutVoice) readoutVoice.textContent = msg;
+  publishAuthEvent("AUTH_REQUEST", isMobilePhone() ? "Samsung Galaxy A52" : "Windows PC");
+  showToast("📱 Cross-device unlock request broadcasted to mesh.");
+}
+
 
 function confirmAction(action, promptText) {
   triggerHaptic(25);
@@ -2202,7 +2213,14 @@ async function startBiometricFaceScan(autoStart = false) {
       laserEl.style.background = "#22d3ee";
     }
   } catch (err) {
-    if (readoutEl) readoutEl.textContent = "CAMERA RESTRICTED: PLEASE ALLOW CAMERA ACCESS";
+    console.warn("[Face ID] Camera access error:", err);
+    if (readoutEl) {
+      readoutEl.innerHTML = "⚠️ No webcam detected. Tap <strong style='color:#34d399;'>'Unlock Workstation'</strong> below or unlock via phone.";
+    }
+    const btnWs = document.getElementById("btn-unlock-workstation");
+    if (btnWs) {
+      btnWs.style.animation = "pulseGlow 1.5s infinite";
+    }
     if (btn) btn.disabled = false;
     isScanningFace = false;
     return;
@@ -3224,6 +3242,11 @@ function handleAuthEvent(payload) {
       sessionStorage.removeItem("leags_authorized");
       initSecurityGate();
       showToast(`🔒 System locked remotely by ${payload.device || "Workstation"}.`);
+    }
+  } else if (payload.type === "AUTH_REQUEST") {
+    if (isBiometricVerified) {
+      publishAuthEvent("AUTH_VERIFIED", isMobilePhone() ? "Samsung Galaxy A52" : "Windows PC");
+      showToast("🟢 Approved instant authorization request for paired device.");
     }
   }
 }
