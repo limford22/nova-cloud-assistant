@@ -1,5 +1,5 @@
-// Leags PWA Service Worker - v12 (Instant PC Workstation Unlock & Cross-Device Mesh)
-const CACHE_NAME = 'leags-cache-v12';
+// Leags PWA Service Worker - v13 (Dedicated Port 8080 & Biometric Security)
+const CACHE_NAME = 'leags-cache-v13';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();

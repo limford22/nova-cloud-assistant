@@ -2214,13 +2214,7 @@ async function startBiometricFaceScan(autoStart = false) {
     }
   } catch (err) {
     console.warn("[Face ID] Camera access error:", err);
-    if (readoutEl) {
-      readoutEl.innerHTML = "⚠️ No webcam detected. Tap <strong style='color:#34d399;'>'Unlock Workstation'</strong> below or unlock via phone.";
-    }
-    const btnWs = document.getElementById("btn-unlock-workstation");
-    if (btnWs) {
-      btnWs.style.animation = "pulseGlow 1.5s infinite";
-    }
+    if (readoutEl) readoutEl.textContent = "CAMERA RESTRICTED: PLEASE ALLOW CAMERA ACCESS";
     if (btn) btn.disabled = false;
     isScanningFace = false;
     return;
